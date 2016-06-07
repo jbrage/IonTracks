@@ -17,6 +17,7 @@ The code IonTracks consists of different parts, see below. The idea is to distri
     - use the makefile to compile the cython files and run with "python3 main.py"
 - the sampling of particle parameters from .spc files requires installion of libamtrack:
     - https://github.com/libamtrack/library
+    - the created libamtrack.so file must be compiled locally
 - an example of .spc files can be downloaded here: 
     - https://libamtrack.dkfz.org/libamtrack/index.php/Download
 - .spc files for a particular beam setup can be created with e.g. SHIELD-HIT:
