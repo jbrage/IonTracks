@@ -1,23 +1,63 @@
 import cython
 # Declarations exclusively to either pure Python or Cython
-# Lines in triple quotes will be executed in .pyx files
-
-# Get full access to all of Cython
-cimport cython
-
+if not cython.compiled:
+    # No-op decorators for Cython compiler directives
+    def dummy_decorator(*args, **kwargs):
+        if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
+            # Called as @dummy_decorator. Return function
+            return args[0]
+        else:
+            # Called as @dummy_decorator(*args, **kwargs).
+            # Return decorator
+            return dummy_decorator
+    # Already builtin: cfunc, inline, locals, returns
+    for directive in ('boundscheck','cdivision','initializedcheck','wraparound','header'):
+        setattr(cython, directive, dummy_decorator)
+    # Dummy Cython functions
+    for func in ('address',):
+        setattr(cython, func, lambda _: _)
+else:
+    # Lines in triple quotes will be executed in .pyx files
+    """
+    # Get full access to all of Cython
+    cimport cython
+    """
 # Seperate but equivalent imports and
 # definitions in pure Python and Cython
-# Lines in triple quotes will be executed in .pyx files.
-
-# Mathematical constants and functions
-from libc.math cimport (M_PI as pi, sin, cos, tan, asin as arcsin, acos as arccos, atan as arctan, sinh, cosh, tanh, asinh as arcsinh, acosh as arccosh, atanh as arctanh, exp, log, log2, log10, sqrt, erfc )
+if not cython.compiled:
+    # Mathematical constants and functions
+    from numpy import (sin, cos, tan, arcsin, arccos, arctan,
+                       sinh, cosh, tanh, arcsinh, arccosh, arctanh,
+                       exp, log, log2, log10,
+                       sqrt,pi
+                       )
+    from math import erfc
+else:
+    # Lines in triple quotes will be executed in .pyx files.
+    """
+    # Mathematical constants and functions
+    from libc.math cimport (M_PI as pi,
+                            sin, cos, tan,
+                            asin as arcsin,
+                            acos as arccos,
+                            atan as arctan,
+                            sinh, cosh, tanh,
+                            asinh as arcsinh,
+                            acosh as arccosh,
+                            atanh as arctanh,
+                            exp, log, log2, log10,
+                            sqrt, erfc
+                            )
+    """
 
 import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
 import matplotlib.gridspec as gridspec
-import pylab as pl
-import math
+import numpy.random as rnd
+
+#import pylab as pl
+#import math
 
 
 @cython.ccall
@@ -32,12 +72,7 @@ def distribute_and_evolve(track_radii,track_LETs,parameter_list,SHOW_PLOT):
     return f(track_radii,track_LETs,parameter_list,SHOW_PLOT)
 
 
-@cython.cfunc
-@cython.boundscheck(False)
-@cython.cdivision(True)
-@cython.initializedcheck(False)
-@cython.wraparound(False)
-@cython.locals( # variables
+@cython.header( # variables
                 track_radii='double[::1]',
                 track_LETs='double[::1]',
                 parameter_list='list',
@@ -52,6 +87,10 @@ def distribute_and_evolve(track_radii,track_LETs,parameter_list,SHOW_PLOT):
                 # indices and lengths
                 nx='size_t',ny='size_t',nz='size_t',i='size_t',j='size_t',k='size_t',
                 mid_x_array='size_t',mid_y_array='size_t',mid_z_array='size_t',N0='double',b='double',front_factor='double',distance_from_center='double',
+                # initialise charge carriers
+                x_coordinates_ALL='double[::1]',y_coordinates_ALL='double[::1]',number_of_tracks='size_t',inner_radius='size_t',outer_radius='size_t',
+                x='double',y='double',my_counter='size_t',MAXVAL='double',MINVAL='double',
+
                 # von Neumann analysis
                 sx='double', sy='double', sz='double', cx='double', cy='double', cz='double',von_neumann_expression='bint',
                 # Lax-Wendroff scheme
@@ -74,8 +113,8 @@ def f(track_radii,track_LETs,parameter_list,SHOW_PLOT):
     theta       = parameter_list[6] # [rad] angle between electric field and the ion track(s)
     alpha       = parameter_list[7] # [cm^3/s] recombination constant
     no_x        = parameter_list[8] # number of elements in the x-direction
-    no_y        = parameter_list[9]# number of elements in the y-direction
-    no_z        = parameter_list[10]# number of elements in the z-direction
+    no_y        = parameter_list[9]  # number of elements in the y-direction
+    no_z        = parameter_list[10]  # number of elements in the z-direction
     no_z_electrode   = parameter_list[11] # remove?
     d           = parameter_list[12] # [cm] # electrode gap
     W           = parameter_list[13] # [UNITS] energy required to form a pair of ions
@@ -85,6 +124,11 @@ def f(track_radii,track_LETs,parameter_list,SHOW_PLOT):
 
     # number of times the figure is updated
     no_figure_updates = 5
+
+    number_of_iterations = 1e4
+    x_coordinates_ALL = rnd.uniform(0,1,number_of_iterations*10)*no_x
+    y_coordinates_ALL = rnd.uniform(0,1,number_of_iterations*10)*no_y
+
 
     # preallocate arrays
     positive_array=np.zeros((no_x,no_y,no_z+2*no_z_electrode))
@@ -101,25 +145,46 @@ def f(track_radii,track_LETs,parameter_list,SHOW_PLOT):
     # ensure the resolution is the same in all directions for the the approximations below
     assert(dx==dy and dy==dz)
 
-    #initialize a Gaussian track carrier distribution around a track in the center of the array
-    N0 = track_LETs[0]/W # Linear charge carrier density
-    b = track_radii[0] # Gaussian track radius
-    front_factor = N0/(pi*(b*b))
-
-    # do not initialize charge carriers in the electrodes arrays
-    for k in range(no_z_electrode,no_z+no_z_electrode):
-        for i in range(no_x):
-            for j in range(no_y):
-                distance_from_center=sqrt(((i-mid_x_array)  *(i-mid_x_array)  )+ ((j-mid_y_array) *(j-mid_y_array) ))*dx
-                ion_density=front_factor*exp(-(distance_from_center*distance_from_center)/(b*b))
-                positive_array[i,j,k]=ion_density
-                no_initialised_charge_carriers+=ion_density
-
-    negative_array=deepcopy(np.asarray(positive_array,dtype='double'))
+    my_counter = 0
+    outer_radius = int(no_x/2.)
+    inner_radius = outer_radius-10
 
     # for the colorbars
     MINVAL = 0.
-    MAXVAL = front_factor
+    MAXVAL = 0.
+
+    number_of_tracks = len(track_LETs)
+    for track_number in range(number_of_tracks):
+
+        N0 = track_LETs[track_number]/W     # Linear charge carrier density
+        b = track_radii[track_number]       # Gaussian track radius
+        front_factor = N0/(pi*b**2)
+
+        my_counter += 1
+        x = x_coordinates_ALL[my_counter]
+        y = y_coordinates_ALL[my_counter]
+
+        # faster than just
+        while sqrt((x - mid_x_array) ** 2 + (y - mid_y_array) ** 2) > inner_radius:
+            my_counter += 1
+            x = x_coordinates_ALL[my_counter]
+            y = y_coordinates_ALL[my_counter]
+
+        for k in range(no_z_electrode,no_z+no_z_electrode):
+            for i in range(no_x):
+                for j in range(no_y):
+                    distance_from_center=sqrt((i-x)**2 + (j-y)**2)*dx
+                    ion_density=front_factor*exp(-distance_from_center**2/b**2)
+                    positive_array[i,j,k] += ion_density
+
+                    if positive_array[i,j,k] > MAXVAL:
+                        MAXVAL = positive_array[i,j,k]
+
+                    # calculate the recombination only for charge carriers inside the circle
+                    if sqrt((i - mid_x_array)**2 + (j - mid_y_array)**2) < inner_radius:
+                        no_initialised_charge_carriers+=ion_density
+
+    negative_array=deepcopy(np.asarray(positive_array,dtype='double'))
 
     if SHOW_PLOT:
         plt.close('all')
@@ -157,16 +222,16 @@ def f(track_radii,track_LETs,parameter_list,SHOW_PLOT):
     while not von_neumann_expression:
         dt /= 1.01
         # as defined in the Deghan (2004) paper
-        sx = ion_diff*dt/((dx*dx))
-        sy = ion_diff*dt/((dy*dy))
-        sz = ion_diff*dt/((dz*dz))
+        sx = ion_diff*dt/(dx**2)
+        sy = ion_diff*dt/(dy**2)
+        sz = ion_diff*dt/(dz**2)
 
         cx = ion_mobility*Efield*dt/dx*sin(theta)
         cy = 0
         cz = ion_mobility*Efield*dt/dz*cos(theta)
 
         # check von Neumann's criterion
-        von_neumann_expression = (2*(sx + sy + sz) + (cx*cx)+ (cy*cy)+ (cz*cz)<= 1 and (cx*cx)*(cy*cy)*(cz*cz)<= 8*sx*sy*sz)
+        von_neumann_expression = (2*(sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1 and cx**2*cy**2*cz**2 <= 8*sx*sy*sz)
 
     # calculate the number of step required to drag the two charge carrier distributions apart
     computation_time_steps=int(d/(2.*ion_mobility*Efield*dt))
@@ -216,8 +281,10 @@ def f(track_radii,track_LETs,parameter_list,SHOW_PLOT):
 
                     # the recombination part
                     recomb_temp = alpha*positive_array[i,j,k]*negative_array[i,j,k]*dt
-                    # the total recombination
-                    no_recombined_charge_carriers += recomb_temp
+
+                    # the recombination inside the "inner_radius" circle
+                    if sqrt((i - mid_x_array) ** 2 + (j - mid_y_array) ** 2) < inner_radius:
+                        no_recombined_charge_carriers += recomb_temp
 
                     # positive array
                     positive_array_temp[i,j,k] = positive_temp_entry - recomb_temp
