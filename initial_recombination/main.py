@@ -16,6 +16,7 @@ def Jaffe_theory(d_cm,LET_eV_cm,b_cm,theta,electric_field):
     N0 = LET_eV_cm / W
     g = alpha * N0 / (8. * pi * ion_diff)
 
+    # for the case of an ion track parallel to the electric
     if theta > 0:
         x = (b_cm * ion_mobility * electric_field * sin(theta) / (2 * ion_diff)) ** 2
         def nasty_function(y):
@@ -29,6 +30,7 @@ def Jaffe_theory(d_cm,LET_eV_cm,b_cm,theta,electric_field):
             return value
         f = 1. / (1 + g * nasty_function(x))
 
+    # the ion track rotated an angle theta to the electric field
     elif theta==0.:
         factor = exp(-1/g)*ion_mobility*b_cm**2*electric_field/(2.*g*d_cm*ion_diff)
         first_term = expi(1/g + log(1 + (2*d_cm*ion_diff/(ion_mobility*b_cm**2*electric_field))))
@@ -101,9 +103,9 @@ if __name__ == "__main__":
     b_cm = 0.002            # Gaussian track radius [cm]
     
     d_cm = 0.2              # electrode gap [cm]
-    theta = 0.         # angle between track and electric field [rad]
+    theta = 0.              # angle between track and electric field [rad]
     
-    unit_length = 5e-4      # cm, size of every voxel length
+    unit_length = 2e-4      # cm, size of every voxel length
     SHOW_PLOT = True
 
     params = [b_cm, d_cm, theta, electric_field_list, unit_length, W, ion_mobility,ion_diff,alpha]
