@@ -10,11 +10,11 @@ MAX_DISTANCE = 50 * 1e-4
 # Scholz parametrization of maximal radius
 def rmax_E(E):
     rho_air = 0.001225
-    return 4e-5 * E ** 1.5 / rho_air
+    rmax = 4e-5 * E ** 1.5 / rho_air
+    return rmax
 
 
-# Geiss (Scholz?) parametrization of the radial dose distribution
-# without LET, 2pi, and rho
+# Geiss parametrization of the radial dose distribution
 def SK(r, E):
     rMin = 1e-6  # cm
     rMax = rmax_E(E)

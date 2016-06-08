@@ -16,11 +16,11 @@ def get_spectrum_at_range(chosen_range_g_cm2):
     output = all_outputs[0]  # should be 0
     assert (output == 0)
 
-    E_MeV_u_initial = all_outputs[6]  # (float) initial energy
-    peak_position_g_cm2 = all_outputs[7]  # (float)
-    particle_number_initial = all_outputs[8]  # (int) see AT_particle_name_from_particle_no_single
-    material_number = all_outputs[9]  # (int) see AT_material_name_from_number
-    normalisation = all_outputs[10]  # (float) normalisation of the fluence
+    E_MeV_u_initial = all_outputs[6]            # (float) initial energy
+    peak_position_g_cm2 = all_outputs[7]        # (float)
+    particle_number_initial = all_outputs[8]    # (int) see AT_particle_name_from_particle_no_single
+    material_number = all_outputs[9]            # (int) see AT_material_name_from_number
+    normalisation = all_outputs[10]             # (float) normalisation of the fluence
 
     if normalisation != 1.0:
         print("normalisation: " + str(normalisation))
@@ -111,14 +111,16 @@ def sample_points(incident_number_of_particles,energy_dic,fluence_dic,E_MeV_u_in
 
 if __name__ == "__main__":
 
+    #path to the directory and the spc file respectively
     spcdirpath = "/home/jeppebrage/PycharmProjects/spectra-scripts"
     fpath = spcdirpath + "/aps.spc"
 
     assert os.path.isfile(fpath)
 
-    SHOW_PLOT=True
-    print_bs_LETs=False
-    chosen_distance_g_cm2 = 1.1
+    SHOW_PLOT=True # show plots
+    print_bs_LETs=False # print the calculated results from the subroutine
+
+    chosen_distance_g_cm2 = 1.1 #spectrum at a given distance [g/cm^2]
     incident_number_of_particles = 50  # calculate this from the incident fluence
 
     energy_dic,fluence_dic,E_MeV_u_initial = get_spectrum_at_range(chosen_distance_g_cm2)
