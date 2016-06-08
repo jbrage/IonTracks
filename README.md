@@ -2,6 +2,9 @@
 
 The code IonTracks consists of different parts, see below. The idea is to distribute charge carriers in ion tracks depending on the linear energy transfer (LET) and a Gaussian track radius (b).
 
+The numerical stability and results are investigated here: http://owww.phys.au.dk/~jeppebc/Thesis/JeppeBrageChristensen_Thesis.pdf
+
+
 ## Comparison with the Jaffé theory and initial (intra-track) recombination in a single track:
 - main.py compares IonTracks with the Jaffé theory for initial recombination.
 
