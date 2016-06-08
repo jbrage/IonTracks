@@ -1,8 +1,5 @@
 import numpy as np
 from distribute_and_evolve_pulsed import distribute_and_evolve
-from scipy.special import expi
-import matplotlib.pyplot as plt
-from math import pi, exp, sin, log, sqrt
 
 W = 33.9  # eV/ion pair for air
 # define the parameters from Kanai (1998)
@@ -64,17 +61,15 @@ if __name__ == "__main__":
     LET_eV_cm = LET_keV_um*1e7
 
     b_cm = 0.002            # Gaussian track radius [cm]
-
     d_cm = 0.2              # electrode gap [cm]
-    theta = 0.         # angle between track and electric field [rad]
+    theta = 0.              # angle between track and electric field [rad]
 
-    unit_length = 5e-4      # cm, size of every voxel length
+    unit_length = 2e-4      # cm, size of every voxel length
     SHOW_PLOT = True
+    number_of_tracks = 50
 
-    number_of_tracks = 20
-
-    track_radii = np.ones(number_of_tracks)*b_cm        # np.array([0.002,0.002])  # cm
-    track_LETs = np.ones(number_of_tracks)*LET_eV_cm    # np.array([0.1,0.1])*1e7   # eV/cm
+    track_radii = np.ones(number_of_tracks)*b_cm        # cm
+    track_LETs = np.ones(number_of_tracks)*LET_eV_cm    # eV/cm
 
     params = [b_cm, d_cm, theta, electric_field_list, unit_length, W, ion_mobility,ion_diff,alpha]
     f_IonTracks = calculate_collection_efficiency(params,SHOW_PLOT,track_LETs,track_radii)

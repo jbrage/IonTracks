@@ -1,4 +1,10 @@
 import cython
+import numpy as np
+import matplotlib.pyplot as plt
+from copy import deepcopy
+import matplotlib.gridspec as gridspec
+import numpy.random as rnd
+
 # Declarations exclusively to either pure Python or Cython
 if not cython.compiled:
     # No-op decorators for Cython compiler directives
@@ -49,15 +55,6 @@ else:
                             sqrt, erfc
                             )
     """
-
-import numpy as np
-import matplotlib.pyplot as plt
-from copy import deepcopy
-import matplotlib.gridspec as gridspec
-import numpy.random as rnd
-
-#import pylab as pl
-#import math
 
 
 @cython.ccall
