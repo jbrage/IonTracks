@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('TkAgg')
+
 import numpy as np
 from distr_ion_tracks import distribute_and_evolve
 from scipy.special import expi
@@ -105,7 +108,7 @@ if __name__ == "__main__":
     d_cm = 0.2              # electrode gap [cm]
     theta = 0.              # angle between track and electric field [rad]
     
-    unit_length = 2e-4      # cm, size of every voxel length
+    unit_length = 5e-4      # cm, size of every voxel length
     SHOW_PLOT = True
 
     params = [b_cm, d_cm, theta, electric_field_list, unit_length, W, ion_mobility,ion_diff,alpha]
