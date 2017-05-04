@@ -1,9 +1,8 @@
 # IonTracks
 
+Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler. "A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams." Medical Physics 43.10 (2016): 5484-5492.
+
 The code IonTracks consists of different parts, see below. The idea is to distribute charge carriers in ion tracks depending on the linear energy transfer (LET) and a Gaussian track radius (b).
-
-The numerical stability and results are investigated here: http://owww.phys.au.dk/~jeppebc/Thesis/JeppeBrageChristensen_Thesis.pdf
-
 
 ## Comparison with the Jaffé theory and initial (intra-track) recombination in a single track:
 - main.py compares IonTracks with the Jaffé theory for initial recombination.
