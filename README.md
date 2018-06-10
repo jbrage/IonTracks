@@ -15,13 +15,15 @@ The code IonTracks consists of different parts, see below. The idea is to distri
 
 ## Dependencies and installation
 - Generally, the simulation of charge carriers is computed with python3 and is written on Ubuntu 16.04:
-    - sudo apt install python3 
-    - sudo apt install python3-numpy python3-scipy python3-matplotlib
-    - sudo apt install python-pip
-    - sudo pip install Cython
-    - Cython version 0.23 or newer is required
 
-    - make and run with "python3 main.py"
+```
+sudo apt install python3 
+sudo apt install python3-numpy python3-scipy python3-matplotlib
+sudo apt install python-pip
+sudo pip install Cython
+```
+- Cython version 0.23 or newer is required
+- make and run with "python3 main.py"
 
 - the sampling of particle parameters from .spc files requires installion of libamtrack:
     - https://github.com/libamtrack/library
