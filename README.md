@@ -25,7 +25,7 @@ sudo pip install Cython
 ```
 - Cython version 0.23 or newer is required
 ```
-make && "python3 main.py
+make && python3 main.py
 ```
 
 - the sampling of particle parameters from .spc files requires installion of libamtrack:
