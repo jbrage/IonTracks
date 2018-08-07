@@ -6,6 +6,8 @@ from distr_ion_tracks import distribute_and_evolve
 from scipy.special import expi
 import matplotlib.pyplot as plt
 from math import pi, exp, sin, log, sqrt
+import mpmath
+mpmath.mp.dps = 50 # number of figures for computing exponential integrals
 
 W = 33.9  # eV/ion pair for air
 # define the parameters from Kanai (1998)
@@ -35,9 +37,9 @@ def Jaffe_theory(d_cm,LET_eV_cm,b_cm,theta,electric_field):
 
     # the ion track rotated an angle theta to the electric field
     elif theta==0.:
-        factor = exp(-1/g)*ion_mobility*b_cm**2*electric_field/(2.*g*d_cm*ion_diff)
-        first_term = expi(1/g + log(1 + (2*d_cm*ion_diff/(ion_mobility*b_cm**2*electric_field))))
-        second_term = expi(1/g)
+        factor = mpmath.exp(-1.0/g)*ion_mobility*b_cm**2*electric_field/(2.*g*d_cm*ion_diff)
+        first_term = mpmath.ei(1.0/g + log(1.0 + (2.0*d_cm*ion_diff/(ion_mobility*b_cm**2*electric_field))))
+        second_term = mpmath.ei(1.0/g)
 
         f = factor*(first_term - second_term)
     else:
