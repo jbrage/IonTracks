@@ -1,0 +1,3 @@
+Position (x,y) -0.31 0.09
+FullSpot 178.7367
+MaxSpot 274.6152
