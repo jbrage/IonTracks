@@ -14,8 +14,7 @@ The ```example.py``` file shows how both the initial and total (initial+general)
 - Following packages are required:
 
 ```
-sudo apt install python3-numpy python3-scipy python3-matplotlib
-sudo apt install mpmath
+sudo apt install python3-numpy python3-scipy python3-matplotlib python3-mpmath
 sudo apt install python3-pip
 sudo pip install Cython
 ```
