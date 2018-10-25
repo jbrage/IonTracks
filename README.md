@@ -3,8 +3,8 @@
 Questions? Contact jeppebrage@gmail.com 
 
 ## Validation 
-The *IonTracks* code is partially validated in 
-Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler. "A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams." Medical Physics 43.__10__ (2016): 5484-92.
+The *IonTracks* code is partially validated in    
+Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler. *A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams* Medical Physics 43.__10__ (2016): 5484-92.
 
 ## Calculation of recombination losses
 The ```example.py``` file shows how both the initial and total (initial+general) recombination is calculated for a parallel plate ionization chamber exposed to single tracks or a continuous beam
