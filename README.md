@@ -1,4 +1,4 @@
-# IonTracks
+# *IonTracks*
 
 Questions? Contact jeppebrage@gmail.com 
 
@@ -14,9 +14,7 @@ The ```example.py``` file shows how both the initial and total (initial+general)
 - Following packages are required:
 
 ```
-sudo apt install python3 
 sudo apt install python3-numpy python3-scipy python3-matplotlib
-sudo apt install python-pip
 sudo apt install mpmath
 sudo pip install Cython
 ```
@@ -25,6 +23,3 @@ Use e.g. with
 cd cython && make
 cd .. && python3 example.py
 ```
-
-
-
