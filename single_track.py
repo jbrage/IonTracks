@@ -38,11 +38,8 @@ if __name__ == "__main__":
     voltage_V = 50
     energy_MeV = 226
 
-    # the energy at 2 cm water depth using Monte Carlo during SKANDION experiments
-    energy_MeV = E_MeV_at_reference_depth_cm(energy_MeV)
-
     # LET in air
-    # LET_keV_um = E_MeV_to_LET_keV_um(energy_MeV)
+    LET_keV_um = E_MeV_to_LET_keV_um(energy_MeV)
 
     # calculate the collection effciency with IonTracks and the Jaffe theory
     ks_IonTracks = IonTracks_initial_recombination(voltage_V, energy_MeV, electrode_gap_cm)
