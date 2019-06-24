@@ -48,5 +48,5 @@ if __name__ == "__main__":
     results = [energy_MeV, LET_keV_um, ks_Jaffe, ks_IonTracks]
 
     header = "# E [MeV], LET [keV/um],  ks_Jaffe, ks_IonTracks\n"
-    text = "     {},\t{:0.5f},   {:0.4f},\t{:0.4f}".format(*results)
+    text = "     {},\t{:0.5f},   {:0.6f},\t{:0.6f}".format(*results)
     print(header, text)
