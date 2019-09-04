@@ -3,11 +3,11 @@
 Questions? Contact jeppebrage@gmail.com (mail addresses given in the papers are obsolete)
 
 ## *IonTracks* calculations
-Features the calculation of recombination losses in ion, electron, and photon beams. 
-Ion beams exhibit a non-uniform charge carrier distribution which is accounted for through amorphous track structure theory.
+Features the calculation of recombination losses in ion, electron, and photon beams in parallel-plate gas-filled ionization chambers: 
+- Ion beams exhibit a non-uniform charge carrier distribution which is accounted for through amorphous track structure theory.
 Use the "IonBeams" scripts for ions.
 
-Photon and electron beams are associated with uniform charge carrier densities. The current scripts enable the inclusion of electric fields varying in both time and space in constrast to theories.
+- Photon and electron beams are associated with uniform charge carrier densities. The current scripts enable the inclusion of electric fields varying in both time and space in constrast to theories.
 
 
 ## Validation 
@@ -19,7 +19,8 @@ Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler. *A general algorithm
 *IonTracks* is validated against the Boag theory (the basis of the Two-voltage method) for photon and electron beams with uniform charge carrier densities 
 
 ## Calculation of recombination losses
-The ```example.py``` file shows how both the initial and total (initial+general) recombination is calculated for a parallel plate ionization chamber exposed to single tracks or a continuous beam
+Both the IonBeams folder and the electron/photon folder feature example files.
+
 
 ## Dependencies and installation
 - The software has been tested on Ubuntu 16.04 and newer
