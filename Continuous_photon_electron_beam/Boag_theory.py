@@ -59,7 +59,7 @@ def Boag_Continuous(Qdensity_C_cm3_s, d_cm, V):
 
     # uncertainty:
     # Ionization chambers, Chapter 3, in The Dosimetry of Ionizing Radiation (1987)
-    sigma = 2
+    sigma = 1
     mu_c_std = 0.8e11*sigma
     mu_c_high = mu_c + mu_c_std
     mu_c_low = mu_c - mu_c_std
