@@ -14,7 +14,7 @@ cimport cython
 @cython.cdivision(True) # turn off checks for zero division
 
 
-def pulsed_beam_PDEsolver(list parameter_list):
+def continuous_beam_PDEsolver(list parameter_list):
     '''
     Define the parameters from Kanai (1998)
     '''
