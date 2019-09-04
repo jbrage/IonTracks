@@ -77,10 +77,7 @@ if __name__ == "__main__":
         plt.plot(1./voltages_V, f_result_IonTracks, **IT_style)
         plt.plot(1./voltages_LS, f_result_Boag, **Boag_style)
 
-        # print("\n#%g C/cm3:" % Q)
-        # for (V,f1, f2) in zip(voltages_V, f_result_IonTracks, f_result_Boag):
-        #     print("%0.2f, %0.5g, %0.5g" % (V, f1, f2))
-
+    plt.title("Plane-parallel chamber with $d = {:0.2g}$ cm air gap".format(d_cm))
     plt.xlabel("Inverse voltage [1/V]")
     plt.ylabel("Collection efficiency")
     plt.legend(loc = 'best', frameon=False)
