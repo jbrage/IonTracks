@@ -25,7 +25,7 @@ def IonTracks_pulsed(voltage_V, d_cm, elec_per_cm3):
                                 SHOW_PLOT,
                                 PRINT_parameters
                             ]
-    f, f_steps, dt, collection_time_steps = pulsed_beam_PDEsolver(simulation_parameters)
+    _, f_steps, dt, collection_time_steps = pulsed_beam_PDEsolver(simulation_parameters)
 
     time_s = np.arange(0, len(f_steps)*dt, dt)
     sep_time_s = collection_time_steps*dt*2
@@ -38,7 +38,6 @@ def IonTracks_pulsed(voltage_V, d_cm, elec_per_cm3):
     # plt.xlabel("Time [s]")
     # plt.ylabel("Collection efficiency $f$")
     # plt.savefig("recomb_cont.pdf")
-
     return f
 
 
@@ -82,14 +81,15 @@ if __name__ == "__main__":
 
         plt.plot(1./voltages_V, f_result_IonTracks, **IT_style)
 
-        # plot Boag with uncertainties; Boag should be avoided below f = 0.7
+        # plot Boag with +/-1 std uncertainties; Boag should be avoided below f = 0.7
         Boag_low = f_result_Boag[1,:]
         Boag_high = f_result_Boag[2,:]
         Boag_mean = f_result_Boag[0,:]
 
         plt.fill_between(1./voltages_LS, Boag_high, Boag_low, **Boag_style)
         plt.plot(1./voltages_LS, Boag_mean, c=clist[i], ls = '--')
-
+        
+    plt.title("Plane-parallel chamber with $d = {:0.2g}$ cm air gap".format(d_cm))
     plt.xlabel("Inverse voltage [1/V]")
     plt.ylabel("Collection efficiency")
     plt.legend(loc = 'best', frameon=False)
