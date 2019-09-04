@@ -30,8 +30,8 @@ sudo apt install python3-numpy python3-scipy python3-matplotlib python3-mpmath
 sudo apt install python3-pip
 sudo pip install Cython
 ```
-Use e.g. with
+Run an example of the IonBeams with
 ```
-cd cython && make
-cd .. && python3 example.py
+cd IonBeams/cython && make
+cd ../ && python3 example.py
 ```
