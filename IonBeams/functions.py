@@ -1,18 +1,21 @@
-import sys, os
-import numpy as np
-from math import pi, exp, sin, log, sqrt, erf
-from scipy.special import expi, hankel1
-from scipy.interpolate import interp1d
 import mpmath
-mpmath.mp.dps = 50 # number of figures for computing exponential integrals
+
+import numpy as np
+
+from math import pi, exp, sin, log, sqrt
+from scipy.special import hankel1
+from scipy.interpolate import interp1d
+
+
+mpmath.mp.dps = 50  # number of figures for computing exponential integrals
 
 # general parameters
-ion_mobility = 1.65
-W = 33.9  # eV/ion pair for air
+ion_mobility = 1.65     # TODO: units
+W = 33.9                # eV/ion pair for air
 # define the parameters from Kanai (1998)
 ion_diff = 3.7e-2       # cm^2/s, averaged for positive and negative ions
 alpha = 1.60e-6         # cm^3/s, recombination constant
-IC_angle_rad = 0.0 # not available in this version
+IC_angle_rad = 0.0      # not available in this version
 
 
 def Jaffe_theory(energy_MeV, voltage_V, electrode_gap_cm):
@@ -22,7 +25,7 @@ def Jaffe_theory(energy_MeV, voltage_V, electrode_gap_cm):
     '''
     electric_field = voltage_V/electrode_gap_cm
     LET_keV_um = E_MeV_to_LET_keV_um(energy_MeV)
-    LET_eV_cm = LET_keV_um*1e7
+    LET_eV_cm = LET_keV_um * 1e7
 
     b_cm = calc_b_cm(LET_keV_um)
 
@@ -31,6 +34,7 @@ def Jaffe_theory(energy_MeV, voltage_V, electrode_gap_cm):
 
     if IC_angle_rad > 0:
         x = (b_cm * ion_mobility * electric_field * sin(IC_angle_rad) / (2 * ion_diff)) ** 2
+
         def nasty_function(y):
             order = 0.
             if y < 1e3:
@@ -58,16 +62,15 @@ def E_MeV_to_LET_keV_um(energy_MeV):
     Calculate the stopping power in air using PSTAR data
     '''
     fname = "input_data/stopping_powers.dat"
-    data = np.genfromtxt(fname, dtype=float, delimiter = " ")
+    data = np.genfromtxt(fname, dtype=float, delimiter=" ")
     E_MeV = data[:, 0]
     LET_MeV_cm2_g = data[:, 1]
     density_air_g_cm3 = 0.001225
     LET_MeV_cm = LET_MeV_cm2_g * density_air_g_cm3
-    LET_keV_um = LET_MeV_cm /10.0
+    LET_keV_um = LET_MeV_cm / 10.0
 
     interpolate_LET = interp1d(E_MeV, LET_keV_um)
     return float(interpolate_LET(energy_MeV))
-
 
 
 def E_MeV_at_reference_depth_cm(energy_MeV):
@@ -75,9 +78,9 @@ def E_MeV_at_reference_depth_cm(energy_MeV):
     Geant4-calculated depth at 2 cm water depth
     '''
     E_MeV_at_2cm = {
-                70 : 48,
-                150 : 138,
-                226 : 215
+                70: 48,
+                150: 138,
+                226: 215
                }
     return E_MeV_at_2cm[energy_MeV]
 
@@ -88,11 +91,11 @@ def doserate_to_fluence(dose_Gy_min, energy_MeV):
     '''
     dose_Gy_s = dose_Gy_min / 60.0
     density_kg_m3 = 1.225
-    density_kg_cm3 = density_kg_m3 *1e-6
+    density_kg_cm3 = density_kg_m3 * 1e-6
     joule_to_keV = 6.241E+15
     LET_keV_um = E_MeV_to_LET_keV_um(energy_MeV)
-    LET_keV_cm = LET_keV_um*1e4
-    fluence_cm2_s = dose_Gy_s *joule_to_keV *density_kg_cm3/ LET_keV_cm
+    LET_keV_cm = LET_keV_um * 1e4
+    fluence_cm2_s = dose_Gy_s * joule_to_keV * density_kg_cm3 / LET_keV_cm
     return fluence_cm2_s
 
 
@@ -103,13 +106,13 @@ def calc_b_cm(LET_keV_um):
     '''
     data = np.genfromtxt("input_data/LET_b.dat", delimiter=",", dtype=float)
     scale = 1e-3
-    LET = data[:,0]*scale
-    b = data[:,1]
+    LET = data[:, 0] * scale
+    b = data[:, 1]
     logLET = np.log10(LET)
     z = np.polyfit(logLET, b, 2)
     p = np.poly1d(z)
 
-    b_cm = p(np.log10(LET_keV_um)) *1e-3
+    b_cm = p(np.log10(LET_keV_um)) * 1e-3
     threshold = 2e-3
     if b_cm < threshold:
         b_cm = threshold

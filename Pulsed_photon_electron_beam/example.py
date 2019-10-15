@@ -1,10 +1,11 @@
-import sys, os
+import sys
 import numpy as np
-sys.path.append('./cython')
 from recombination_cythonized import pulsed_beam_PDEsolver
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 from Boag_theory import Boag_pulsed
+
+sys.path.append('./cython')
 
 
 def IonTracks_pulsed(voltage_V, d_cm, elec_per_cm3):
@@ -38,7 +39,7 @@ if __name__ == "__main__":
     where the charges are given in esu units:
     '''
 
-    d_cm = 0.1 # electrode gap
+    d_cm = 0.1  # electrode gap
     voltages_V = np.asarray([1181, 901.3, 621.3, 434.8, 270, 186.1, 124.4, 75, 50, 25, 12.4])
     # preallocate arrays
     voltages_LS = np.linspace(min(voltages_V), max(voltages_V), 100)
@@ -46,15 +47,15 @@ if __name__ == "__main__":
     f_result_Boag = np.empty(len(voltages_LS))
 
     # convert esu to coulomb
-    e_charge = 1.60217662e-19 # [C]
+    e_charge = 1.60217662e-19  # [C]
     esu_list = np.asarray([2.98, 1.90, 1.31])
     esu_to_C = 3.33564e-10
     charge_density_C_cm3 = esu_list * esu_to_C
 
     # prepare plot
     clist = [i for i in colors.get_named_colors_mapping()]
-    Boag_style = {'ls' : '-'}
-    IT_style = {'ls' : '', 'marker' : 'o', 'markerfacecolor' : 'none'}
+    Boag_style = {'ls': '-'}
+    IT_style = {'ls': '', 'marker': 'o', 'markerfacecolor': 'none'}
     plt.figure()
 
     for i, Q in enumerate(charge_density_C_cm3):
@@ -80,5 +81,5 @@ if __name__ == "__main__":
     plt.title("Plane-parallel chamber with $d = {:0.2g}$ cm air gap".format(d_cm))
     plt.xlabel("Inverse voltage [1/V]")
     plt.ylabel("Collection efficiency")
-    plt.legend(loc = 'best', frameon=False)
+    plt.legend(loc='best', frameon=False)
     plt.savefig("collection_efficiencies.pdf")
