@@ -4,6 +4,8 @@ import numpy.random as rnd
 from copy import deepcopy
 cimport numpy as np
 from libc.math cimport exp, sqrt, M_PI as pi, log, cos, sin
+from scipy import integrate
+
 
 DTYPE = np.double
 ctypedef np.double_t DTYPE_t
@@ -18,14 +20,14 @@ def initial_PDEsolver(list parameter_list):
 
     # define the parameters from Kanai (1998)
     cdef double W = 33.9                # eV/ion pair for air
-    cdef double ion_mobility = 1.65     # cm s^-1 V^-1, averaged for positive and negative ions
+    cdef double ion_mobility = 1.65     # cm^2 s^-1 V^-1, averaged for positive and negative ions
     cdef double ion_diff = 3.7e-2       # cm^2/s, averaged for positive and negative ions
     cdef double alpha = 1.60e-6         # cm^3/s, recombination constant
 
     cdef int no_figure_updates = 5
     cdef double number_of_iterations = 1e7
     cdef double unit_length_cm = 5e-4   # [cm], grid resolution
-    cdef int no_z_electrode = 5 #length of the electrode-buffer to ensure no ions drift through the array in one time step
+    cdef int no_z_electrode = 1 #length of the electrode-buffer to ensure no ions drift through the array in one time step
 
     cdef double LET_eV_cm       = parameter_list[0] # linear energy transfer [eV/cm]
     cdef double track_radius_cm = parameter_list[1] # Gaussian radius b [cm]
@@ -38,7 +40,10 @@ def initial_PDEsolver(list parameter_list):
 
     # density parameters for the Gaussian structure
     cdef double N0 = LET_eV_cm/W     # Linear charge carrier density
+    print("# Charge carriers /cm: {:0.5E}".format(N0))
+    print("# Ion pairs: {:0.5E}".format(LET_eV_cm*d_cm / W))
     cdef double Gaussian_factor = N0/(pi*track_radius_cm**2)
+    cdef double Efield = voltage_V/d_cm
 
     # grid dimension parameters
     cdef int no_x = int(track_radius_cm*8/unit_length_cm)
@@ -47,6 +52,14 @@ def initial_PDEsolver(list parameter_list):
     # find the middle of the arrays
     cdef int mid_xy_array= int(no_x/2.)
     cdef int mid_z_array=int(no_z/2.)
+
+    '''
+    Define parameters for induced current calculations
+    '''
+    cdef double area_cm2 = pi*(mid_xy_array*0.5*unit_length_cm)**2  # [cm^2]
+    cdef double electron_charge_C = 1.60217e-19                 # [coulomb]
+    cdef double drift_v_cm_s = ion_mobility*Efield              # [cm/s]
+
 
     # depending on the cluster/computer, the upper limit may be changed
     if (no_x*no_x*no_z) > 1e8:
@@ -57,8 +70,11 @@ def initial_PDEsolver(list parameter_list):
     cdef np.ndarray[DTYPE_t, ndim=3] negative_array = np.zeros((no_x,no_x,no_z_with_buffer))
     cdef np.ndarray[DTYPE_t, ndim=3] positive_array_temp = np.zeros((no_x,no_x,no_z_with_buffer))
     cdef np.ndarray[DTYPE_t, ndim=3] negative_array_temp = np.zeros((no_x, no_x,no_z_with_buffer))
+    # cdef np.ndarray[DTYPE_t, ndim=3] densityarray = np.zeros((no_x, no_x,no_z_with_buffer))
     cdef long double no_recombined_charge_carriers = 0.0
     cdef long double no_initialised_charge_carriers = 0.0
+    cdef long double no_collected_charge_carriers = 0.0
+
 
     # for the colorbars
     cdef double MINVAL = 0.
@@ -96,7 +112,7 @@ def initial_PDEsolver(list parameter_list):
     cdef double dt = 1.
     cdef bint von_neumann_expression = False
     cdef double sx, sy, sz, cx, cy, cz
-    cdef double Efield = voltage_V/d_cm
+
 
     # find a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
     # decreases and eventually damps out
@@ -113,9 +129,13 @@ def initial_PDEsolver(list parameter_list):
         # check von Neumann's criterion
         von_neumann_expression = (2*(sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1 and cx**2*cy**2*cz**2 <= 8*sx*sy*sz)
 
+
     # calculate the number of step required to drag the two charge carrier distributions apart
     cdef int separation_time_steps = int(d_cm/(2.*ion_mobility*Efield*dt))
-    cdef int computation_time_steps = separation_time_steps*2
+    cdef int computation_time_steps = int(separation_time_steps*2.0) # little more than what is takes to collect all
+
+    cdef np.ndarray[DTYPE_t, ndim=1] collected_CCs = np.zeros(computation_time_steps)
+    cdef np.ndarray[DTYPE_t, ndim=1] no_of_charge_carriers = np.zeros(computation_time_steps)
 
     if PRINT:
         print("Electric field = %s V/cm" % Efield)
@@ -126,7 +146,7 @@ def initial_PDEsolver(list parameter_list):
         print("Number of pixels = %d (x = y directions)" % no_x)
         print("Number of pixels = %d (z direction)" % no_z)
 
-    cdef double distance_from_center, ion_density, positive_temp_entry, negative_temp_entry, recomb_temp = 0.0
+    cdef double distance_from_center, ion_density, positive_temp_entry, negative_temp_entry, recomb_temp = 0.0, CC_voxel
     cdef int i, j, k, time_step
 
 
@@ -143,6 +163,24 @@ def initial_PDEsolver(list parameter_list):
                 if positive_array[i, j, k] > MAXVAL:
                    MAXVAL = positive_array[i, j, k]
 
+    '''
+    Check the numerical precision:
+
+    Area integration over the charge carrier density should equal the LET:
+        int_dA (CC density) dx dy = LET / W = N_0
+    '''
+    area_integral = 0.0
+    for i in range(no_x):
+        for j in range(no_x):
+
+            cc = positive_array[i, j, mid_z_array]
+            area_integral += unit_length_cm * cc
+
+    area_integral_per_cm = area_integral*unit_length_cm
+    print("# CCs (integration):  {:0.5E}".format(area_integral_per_cm*d_cm))
+    descripancy = (area_integral_per_cm/N0 - 1) * 100
+    print(r"# The number of initialized ions deviates {:0.4f}% from the LET".format(descripancy) + "\n")
+
 
     # start the calculation
     for time_step in range(computation_time_steps):
@@ -151,16 +189,16 @@ def initial_PDEsolver(list parameter_list):
         if SHOW_PLOT:
             update_figure_step=int(computation_time_steps/no_figure_updates)
             if time_step % update_figure_step == 0:
-                ax1.imshow(np.asarray(negative_array[:,mid_xy_array,:],dtype=np.double).transpose(),vmin=MINVAL,vmax=MAXVAL)
-                ax2.imshow(np.asarray(positive_array[:,mid_xy_array,:],dtype=np.double).transpose(),vmin=MINVAL,vmax=MAXVAL)
-                ax3.imshow(np.asarray(positive_array[:,:,mid_z_array],dtype=np.double),vmin=MINVAL,vmax=MAXVAL)
+                ax1.imshow(np.asarray(negative_array[:,mid_xy_array,:], dtype=np.double).transpose(),vmin=MINVAL,vmax=MAXVAL)
+                ax2.imshow(np.asarray(positive_array[:,mid_xy_array,:], dtype=np.double).transpose(),vmin=MINVAL,vmax=MAXVAL)
+                ax3.imshow(np.asarray(positive_array[:,:,mid_z_array], dtype=np.double),vmin=MINVAL,vmax=MAXVAL)
                 cb.set_clim(vmin=MINVAL, vmax=MAXVAL)
                 plt.pause(1e-3)
 
         # calculate the new densities and store them in temporary arrays
         for i in range(1,no_x-1):
             for j in range(1,no_x-1):
-                for k in range(1,no_z_with_buffer-1):
+                for k in range(no_z_with_buffer):
                     # using the Lax-Wendroff scheme
                     positive_temp_entry = (sz+cz*(cz+1.)/2.)*positive_array[i,j,k-1]
                     positive_temp_entry += (sz+cz*(cz-1.)/2.)*positive_array[i,j,k+1]
@@ -185,12 +223,23 @@ def initial_PDEsolver(list parameter_list):
 
                     negative_temp_entry += (1. - cx*cx - cy*cy - cz*cz - 2.*(sx+sy+sz))*negative_array[i,j,k]
 
+                    # sum the number of charge carrier/voxel for each time step
+                    no_of_charge_carriers[time_step] += positive_array[i,j,k]
+
                     # the recombination part
-                    recomb_temp = alpha*positive_array[i,j,k]*negative_array[i,j,k]*dt
+                    if k > no_z_electrode and k < (no_z_electrode + no_z):
+                        recomb_temp = alpha*positive_array[i,j,k]*negative_array[i,j,k]*dt*0
+                    else:
+                        recomb_temp = 0.0
 
                     positive_array_temp[i,j,k] = positive_temp_entry - recomb_temp
                     negative_array_temp[i,j,k] = negative_temp_entry - recomb_temp
                     no_recombined_charge_carriers += recomb_temp
+
+                    if k >= (no_z_electrode + no_z_electrode) or k <= (no_z_electrode):
+
+                        no_collected_charge_carriers += positive_array[i,j,k]
+                        collected_CCs[time_step] += positive_array[i,j,k]
 
         # update the positive and negative arrays
         for i in range(1,no_x-1):
@@ -199,5 +248,57 @@ def initial_PDEsolver(list parameter_list):
                     positive_array[i,j,k] = positive_array_temp[i,j,k]
                     negative_array[i,j,k] = negative_array_temp[i,j,k]
 
+    no_of_charge_carriers *=  unit_length_cm * unit_length_cm * unit_length_cm
+
+    # no_of_charge_carriers = max(no_of_charge_carriers)*np.ones(len(no_of_charge_carriers)) # constant!
+    CC_density_per_cm3 = no_of_charge_carriers / (area_cm2 * d_cm)
+
+    print("CCs: {:0.5E}".format(no_of_charge_carriers[0]))
+    # print("max(CCs): {:0.5E}".format(max(no_of_charge_carriers)))
+
     f = (no_initialised_charge_carriers - no_recombined_charge_carriers)/no_initialised_charge_carriers
+
+    print("Number of initialized CCs: {:0.5E}".format(no_initialised_charge_carriers))
+    print("Number of recombined CCs: {:0.5E}".format(no_recombined_charge_carriers) + "\n")
+
+    # mydiff = np.abs(np.diff(np.asarray(collected_CCs, dtype=np.double)))
+    mydiff = np.abs(np.diff(collected_CCs))
+    mysum = np.sum(mydiff)
+    print("Number of collected CCs: {:0.5E}".format(mysum) + "\n")
+
+    print("f = {}".format(mysum/no_initialised_charge_carriers))
+    print("k_s = {}".format(no_initialised_charge_carriers/mysum))
+
+    current_nA = CC_density_per_cm3 * area_cm2 * electron_charge_C * drift_v_cm_s
+    time_s = np.linspace(0, len(no_of_charge_carriers)*dt, len(no_of_charge_carriers))
+
+    Q = 0.0
+    for dI in current_nA:
+        Q += dI * dt
+
+    my_int_Q = integrate.simps(current_nA, time_s)
+
+    # print(Q)
+    print(my_int_Q)
+
+
+    start_Q = electron_charge_C * LET_eV_cm * d_cm / W
+    print(start_Q)
+    print(start_Q/my_int_Q)
+
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    ax_t = ax.twinx()
+
+    ax.plot(time_s, CC_density_per_cm3)
+    ax_t.plot(time_s, current_nA)
+
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel(r"$n$ [charge carriers/cm$^3$]")
+    ax_t.set_ylabel(r"$I$ [A]")
+
+
+    plt.savefig("myfig.pdf")
+
     return f
