@@ -1,10 +1,7 @@
-import sys
-
+import sys; sys.path.append('./cython')
 import numpy as np
 from general_and_initial_recombination import total_recombination_PDEsolver
 from functions import E_MeV_to_LET_keV_um, calc_b_cm, doserate_to_fluence
-
-sys.path.append('./cython')
 
 
 def IonTracks_total_recombination(parameters, PRINT_parameters=False):
