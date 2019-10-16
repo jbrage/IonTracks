@@ -1,9 +1,8 @@
-import sys
+import sys; sys.path.append('./cython')
 
 from initial_recombination import initial_PDEsolver
 from functions import E_MeV_to_LET_keV_um, calc_b_cm, IC_angle_rad, Jaffe_theory
 
-sys.path.append('./cython')
 
 
 def IonTracks_initial_recombination(voltage_V, energy_MeV, electrode_gap_cm,
