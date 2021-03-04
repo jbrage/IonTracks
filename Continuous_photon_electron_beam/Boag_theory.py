@@ -14,6 +14,7 @@ References:
     [2] Andreo, Burns, Nahum et al, Fundamentals of Ionizing Radiation
     [3] Boutillon (1998) "Volume recombination parameter in ionization chambers"
     [4] Liszka et al (2018) "Ion recombination and polarity correction factors for a plane–parallel ionization chamber in a proton scanning beam"
+    [5] christensen et al (2020) "Mapping initial and general recombination in scanning proton pencil beams" Phys Med Biol 65 115003
 '''
 
 def Boag_pulsed(Qdensity_C_cm3, d_cm, V):
