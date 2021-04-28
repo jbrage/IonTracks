@@ -13,7 +13,11 @@ Use the "IonBeams" scripts for ions.
 ## Validation 
 #### Ion beams:
 The *IonTracks* code is partially validated in    
-Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler. *A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams* Medical Physics 43.__10__ (2016): 5484-92.
+Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler (2016) A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams *Medical Physics* 43.__10__: 5484-92.
+
+and 
+Christensen, Jeppe Brage *et al* (2020) Mapping initial and general recombination in scanning proton pencil beams *Phys. Med. Biol.* __65__ 115003
+https://iopscience.iop.org/article/10.1088/1361-6560/ab8579
 
 #### Photon and electron beams:
 *IonTracks* is validated against the Boag theory (the basis of the Two-voltage method) for photon and electron beams with uniform charge carrier densities 
