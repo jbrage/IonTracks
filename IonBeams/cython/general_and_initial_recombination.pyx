@@ -83,7 +83,7 @@ def total_recombination_PDEsolver(list parameter_list):
     along with the number of tracks to be uniformly distributed over the domain
     '''
     cdef int separation_time_steps = int(d_cm/(2.*ion_mobility*Efield_V_cm*dt))
-    cdef int n_separation_times = 5
+    cdef int n_separation_times = 3
     cdef int computation_time_steps = separation_time_steps * n_separation_times
     cdef double simulation_time_s = computation_time_steps*dt
     cdef int number_of_tracks = int(fluence_cm2_s* simulation_time_s*area_cm2)
