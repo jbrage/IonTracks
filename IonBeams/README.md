@@ -10,7 +10,7 @@ The simulation converges only when
 - a sufficient large simulation radius is chosen
 - a sufficient small voxel size is used  
 
-The recombination correction factor *k_s* was simulated for dose-rates (1 - 100) kGy/min and electrode gaps (0.1-0.2) cm and shown in the subfigures below, where each subtitle defines how the parameters were varied:
+The recombination correction factor *k_s* was simulated for dose-rates (1 - 10) kGy/min and electrode gaps (0.1-0.2) cm and shown in the subfigures below, where each subtitle defines how the parameters were varied:
 
 <img src="figures/convergence_plot.png" width="750">
 
@@ -37,7 +37,7 @@ steps to move a charge from one electrode to the opposite, where
 
 The total number of steps in the simulation is per default derived from the time (and hence number of steps) it takes to move the charge carriers between the electrodes as  
 ```
-cdef int n_separation_times = 5
+cdef int n_separation_times = 3
 cdef int computation_time_steps = separation_time_steps * n_separation_times
 ```
 where ```n_separation_times``` is chosen large enough such that the difference between two simulations run with the same parameters should be negligible. Consequently, the simulation time is given as 
@@ -62,7 +62,7 @@ if time_step > separation_time_steps:
         if sqrt((i - mid_xy_array) ** 2 + (j - mid_xy_array) ** 2) < inner_radius:
             no_recombined_charge_carriers += recomb_temp
 ```
-In this particular simulation (```computation_time_steps = separation_time_steps * 5```), the recombination would be counted over the remaining  ```computation_time_steps = separation_time_steps * (5 - 1)``` time steps as the first ```separation_time_steps*1``` only serve as a build-up.
+In this particular simulation (```computation_time_steps = separation_time_steps * 3```), the recombination would be counted over the remaining  ```computation_time_steps = separation_time_steps * (3 - 1)``` time steps as the first ```separation_time_steps*1``` only serve as a build-up.
 
 Note, that this approach may not necessarily be correct. However, if the recombination would be counted for all time steps (as in a real ionization chamber), then choosing a large number of charge separation times ```n_separation_times``` would remedy the effect of the build-up, eventually causing it to be negligible.
 
