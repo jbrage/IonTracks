@@ -37,7 +37,7 @@ def total_recombination_PDEsolver(list parameter_list):
     Define the grid size parameters
     '''
     cdef double LET_eV_cm = LET_keV_um*1e7
-    cdef double r_cm = 0.010                    # radius of the sampled cylinder
+    cdef double r_cm = 0.012                    # radius of the sampled cylinder
     cdef double area_cm2 = r_cm**2*pi           # the "recombination" area
     cdef double unit_length_cm = 6e-4           # cm, size of every voxel length
     cdef int no_xy = int(2*r_cm/unit_length_cm) # no of voxels in xy-directions
