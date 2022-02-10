@@ -10,7 +10,8 @@ The current scheme to solve the partial differential equations (PDEs) involves a
 
 
 ## Number of tracks in a simulation
-Currently, the simulation of a continuous beam is divided into two parts defined by the time it takes to collect the charges of a given ion track.
+Currently, the simulation of a continuous beam is divided into two parts defined by the time it takes to collect the charges of a given ion track. The first time is regarded as a build-up time where no recombination is scored. The second part mimics is steady-state case where the recombination is scored and the recombination correction factor is calculated.
+
 Specifically, given a time step ```dt```, it takes  
 ```
 cdef int separation_time_steps = int(d_cm/(2.*ion_mobility*Efield_V_cm*dt))  
