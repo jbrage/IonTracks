@@ -14,7 +14,7 @@ The recombination correction factor *k_s* was simulated for dose-rates (1 - 10) 
 
 <img src="figures/convergence_plot.png" width="750">
 
-It is evident from the subfigures that the previous choice of ```radius_cm = 0.006``` was too small and that the correction factor $k_s$ converges for sufficiently large radius values as required. However, as the number of voxels increases non-linearly with the simulation radius, choosing a too large value of  ```radius_cm``` would result in unnecessarily long computation times. 
+It is evident from the subfigures that the previous choice of ```radius_cm = 0.006``` was too small and that the correction factor *k_s* converges for sufficiently large radius values as required. However, as the number of voxels increases non-linearly with the simulation radius, choosing a too large value of  ```radius_cm``` would result in unnecessarily long computation times. 
 
 In order to find a suitable value for ```radius_cm```, the underestimation of the calculated value of *k_s* relative to the *true* value of *k_s* (taken as the value for ```radius_um = 200```) is plotted in the figure below as a function of ```radius_cm```. The *ID* numbers in the figure legend below refers to the *ID* numbers in the subtitles in the figure above.
 
