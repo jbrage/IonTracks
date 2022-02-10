@@ -64,5 +64,5 @@ if time_step > separation_time_steps:
 ```
 In this particular simulation (```computation_time_steps = separation_time_steps * 5```), the recombination would be counted over the remaining  ```computation_time_steps = separation_time_steps * (5 - 1)``` time steps as the first ```separation_time_steps*1``` only serve as a build-up.
 
-Note, that this approach may not necessarily be correct. However, if the recombination would be counted for all time steps (as in a real ionization chamber), then choosing a large number of charge separation times ```n``` would remedy the effect of the build-up.
+Note, that this approach may not necessarily be correct. However, if the recombination would be counted for all time steps (as in a real ionization chamber), then choosing a large number of charge separation times ```n_separation_times``` would remedy the effect of the build-up, eventually causing it to be negligible.
 
