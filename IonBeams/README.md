@@ -1,10 +1,22 @@
+The following is related to the simulation of continuous beams only.
+
 ## Stability analysis
 
 The current scheme to solve the partial differential equations (PDEs) involves a grid with parameters
 - ```unit_length_cm``` defines the grid voxel size. The smaller, the finer resolution and longer computation time
 - ```radius_cm``` defines the radius of the simulation cylinder where the ion tracks are sampled. The longer the radius, the more tracks are sampled, and the longer the compuation time
 
-![Underestimation](figures/Underestimation_plot.pdf)
+The simualtion converges only when 
+- a sufficient large simulation radius is chosen
+- a sufficient small voxel size is used  
+
+A previous version used ```radius_cm = 0.006``` appears to be too small based on the results below, where the recombination correction factor was simulated for different dose-rates and electrode gaps:
+
+![Underestimation](figures/convergence_plot.png)
+
+Plotting the underestimation of the correction factor *k_s* as a function of the simulation track radius shows that the previous choice of ```radius_cm = 0.006``` was too small. A new default of twice the value ```radius_cm = 0.012``` is chosen, which however increases the simulation time by a factor of 4. The *ID* numbers in the figure legend refers to the *ID* numbers in the subtitles in the figure above.
+
+![Underestimation](figures/Underestimation_plot.png)
 
 
 
