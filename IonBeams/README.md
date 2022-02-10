@@ -10,7 +10,7 @@ The simulation converges only when
 - a sufficient large simulation radius is chosen
 - a sufficient small voxel size is used  
 
-The recombination correction factor *k_s* was simulated for dose-rates (1 - 10) kGy/min and electrode gaps (0.1-0.15) cm and shown in the subfigures below, where each subtitle defines how the parameters were varied:
+The recombination correction factor *k_s* was simulated for dose-rates (1 - 10) kGy/min and electrode gaps (0.1-0.15) cm and shown in the subfigures below, where each the parameters are given in the y-label/subtitle:
 
 <img src="figures/convergence_plot.png" width="750">
 
@@ -18,7 +18,7 @@ It is evident from the subfigures that the previous choice of ```radius_cm = 0.0
 
 In order to find a suitable value for ```radius_cm```, the underestimation of the calculated value of *k_s* relative to the *true* value of *k_s* (taken as the value for ```radius_um = 200```) is plotted in the figure below as a function of ```radius_cm```. The *ID* numbers in the figure legend below refers to the *ID* numbers in the subtitles in the figure above.
 
-<img src="figures/Underestimation_plot.png" width="750">
+<img src="figures/Underestimation_plot.png" width="600">
 
 From the figure, it appears that *k_s* converges for ```radius_um > 175``` which almost would increase the computation time by an order of magnitude relative to the previous value. As a compromise, a new default of twice the value (```radius_cm = 0.012```) is chosen, increasing the simulation time by a factor of about 4 but causing a pretty negligible variation of *k_s* across the investigated parameters. 
 
