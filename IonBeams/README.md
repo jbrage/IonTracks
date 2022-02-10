@@ -12,13 +12,12 @@ The simualtion converges only when
 
 A previous version used ```radius_cm = 0.006``` appears to be too small based on the results below, where the recombination correction factor was simulated for different dose-rates and electrode gaps:
 
-![Underestimation](figures/convergence_plot.png)
-
-Plotting the underestimation of the correction factor *k_s* as a function of the simulation track radius shows that the previous choice of ```radius_cm = 0.006``` was too small. A new default of twice the value ```radius_cm = 0.012``` is chosen, which however increases the simulation time by a factor of 4. The *ID* numbers in the figure legend refers to the *ID* numbers in the subtitles in the figure above.
-
-![Underestimation](figures/Underestimation_plot.png)
+<img src="figures/convergence_plot.png" width="750">
 
 
+Plotting the underestimation of the correction factor *k_s* as a function of the simulation track radius shows that the previous choice of ```radius_cm = 0.006``` was too small. A new default of twice the value ```radius_cm = 0.012``` is chosen, which however increases the simulation time by a factor of 4. The *ID* numbers in the figure legend below refers to the *ID* numbers in the subtitles in the figure above.
+
+<img src="figures/Underestimation_plot.png" width="750">
 
 
 ## Number of tracks in a simulation
