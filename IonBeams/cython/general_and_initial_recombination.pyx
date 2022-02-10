@@ -37,9 +37,9 @@ def total_recombination_PDEsolver(list parameter_list):
     Define the grid size parameters
     '''
     cdef double LET_eV_cm = LET_keV_um*1e7
-    cdef double r_cm = 0.006                    # radius of the sampled cylinder
+    cdef double r_cm = 0.010                    # radius of the sampled cylinder
     cdef double area_cm2 = r_cm**2*pi           # the "recombination" area
-    cdef double unit_length_cm = 5e-4           # cm, size of every voxel length
+    cdef double unit_length_cm = 6e-4           # cm, size of every voxel length
     cdef int no_xy = int(2*r_cm/unit_length_cm) # no of voxels in xy-directions
     cdef int buffer_radius = 10
     no_xy += 2*buffer_radius
@@ -83,7 +83,8 @@ def total_recombination_PDEsolver(list parameter_list):
     along with the number of tracks to be uniformly distributed over the domain
     '''
     cdef int separation_time_steps = int(d_cm/(2.*ion_mobility*Efield_V_cm*dt))
-    cdef int computation_time_steps = separation_time_steps*5
+    cdef int n_separation_times = 5
+    cdef int computation_time_steps = separation_time_steps * n_separation_times
     cdef double simulation_time_s = computation_time_steps*dt
     cdef int number_of_tracks = int(fluence_cm2_s* simulation_time_s*area_cm2)
     if number_of_tracks < 1:
