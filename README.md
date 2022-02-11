@@ -13,7 +13,8 @@ Use the "IonBeams" scripts for ions.
 ## Validation 
 #### Ion beams:
 The *IonTracks* code is partially validated in    
-Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler (2016) A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams *Medical Physics* 43.__10__: 5484-92.
+Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler (2016) A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams *Medical Physics* 43.__10__: 5484-92  
+https://aapm.onlinelibrary.wiley.com/doi/full/10.1118/1.4962483
 
 and 
 Christensen, Jeppe Brage *et al* (2020) Mapping initial and general recombination in scanning proton pencil beams *Phys. Med. Biol.* __65__ 115003
