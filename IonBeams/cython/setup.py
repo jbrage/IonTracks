@@ -4,7 +4,11 @@ import numpy
 
 
 setup(
-    ext_modules=cythonize(['initial_recombination.pyx', 'general_and_initial_recombination.pyx']),
+    ext_modules=cythonize([
+        'initial_recombination.pyx', 
+        'general_and_initial_recombination.pyx',
+        'Geiss_test.pyx'
+    ]),
     include_dirs=[numpy.get_include()],
     setup_requires=[
         "cython >= 0.22.1",
