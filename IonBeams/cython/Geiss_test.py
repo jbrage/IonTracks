@@ -37,18 +37,7 @@ def Geiss_RRD_cm(r_cm, c, a0_cm, r_max_cm):
 
 
 
-def initial_PDEsolver(list parameter_list):
-
-    # define the parameters from Kanai (1998)
-    cdef double W = 33.9                # eV/ion pair for air
-    cdef double ion_mobility = 1.65     # cm^2 s^-1 V^-1, averaged for positive and negative ions
-    cdef double ion_diff = 3.7e-2       # cm^2/s, averaged for positive and negative ions
-    cdef double alpha = 1.60e-6         # cm^3/s, recombination constant
-
-    cdef int no_figure_updates = 5
-    cdef double number_of_iterations = 1e7
-    cdef double unit_length_cm = 5e-4   # [cm], grid resolution
-    cdef int no_z_electrode = 5 #length of the electrode-buffer to ensure no ions drift through the array in one time step
+def Geiss_PDEsolver(list parameter_list):
 
     cdef double LET_eV_cm       = parameter_list[0] # linear energy transfer [eV/cm]
     cdef double track_radius_cm = parameter_list[1] # Gaussian radius b [cm]
@@ -58,14 +47,29 @@ def initial_PDEsolver(list parameter_list):
     cdef bint SHOW_PLOT         = parameter_list[5] # show frames of the simulation
     cdef bint PRINT             = parameter_list[6] # print parameters?
     cdef double E_MeV_u         = parameter_list[7] 
+    cdef double a0_cm           = parameter_list[8] 
+    cdef double unit_length_cm  = parameter_list[9] 
 
 
-    cdef double LET_eV_cm = LET_keV_um*1e7
+    # define the parameters from Kanai (1998)
+    cdef double W = 33.9                # eV/ion pair for air
+    cdef double ion_mobility = 1.65     # cm^2 s^-1 V^-1, averaged for positive and negative ions
+    cdef double ion_diff = 3.7e-2       # cm^2/s, averaged for positive and negative ions
+    cdef double alpha = 1.60e-6         # cm^3/s, recombination constant
+
+    cdef int no_figure_updates = 5
+    cdef double number_of_iterations = 1e7
     
+    
+    cdef int n_track_radii = 4;
+    #cdef double unit_length_cm = 6e-4   # [cm], grid resolution
+    
+    
+    cdef int no_z_electrode = 4 #length of the electrode-buffer to ensure no ions drift through the array in one time step
     
     cdef double rho_material = 1.2e-3 # g/cm3
-    cdef double density_ratio = 1.0 / rho_material
-    cdef double a0_cm = 1e-7 * density_ratio
+#    cdef double density_ratio = 1.0 / rho_material
+#    cdef double a0_cm = 1e-7 * density_ratio
     # DEFINE E_MeV_u
     cdef double r_max_cm = Geiss_r_max(E_MeV_u, rho_material)    
     cdef double c = LET_eV_cm / (pi * W) * (1 / (1 + 2 * log(r_max_cm / a0_cm)))
@@ -75,7 +79,8 @@ def initial_PDEsolver(list parameter_list):
     cdef double Gaussian_factor = N0/(pi*track_radius_cm**2)
 
     # grid dimension parameters
-    cdef int no_x = int(track_radius_cm*8/unit_length_cm)
+    cdef int no_x = int(track_radius_cm*n_track_radii/unit_length_cm)
+    # print(track_radius_cm*n_track_radii)
     cdef int no_z = int(d_cm/unit_length_cm) #number of elements in the z direction
     cdef int no_z_with_buffer = 2*no_z_electrode + no_z
     # find the middle of the arrays
