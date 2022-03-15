@@ -2,7 +2,7 @@ import sys; sys.path.append('./cython')
 
 from Geiss_test import Geiss_PDEsolver
 from initial_recombination import initial_PDEsolver
-from functions import E_MeV_to_LET_keV_um, calc_b_cm, IC_angle_rad, Jaffe_theory
+from functions import E_MeV_u_to_LET_keV_um, calc_b_cm, IC_angle_rad, Jaffe_theory
 import pyamtrack.libAT as libam
 
 import pandas as pd
@@ -55,7 +55,7 @@ def IonTracks_initial_recombination(voltage_V, energy_MeV, electrode_gap_cm, a0_
     
     # print(unit_length_cm / a0_cm)
 
-    LET_keV_um = E_MeV_to_LET_keV_um(energy_MeV)
+    LET_keV_um = E_MeV_u_to_LET_keV_um(energy_MeV)
     track_radius_cm = calc_b_cm(LET_keV_um)
 
     LET_eV_cm = LET_keV_um*1e7
@@ -83,58 +83,25 @@ if __name__ == "__main__":
     
     voltages = [50, 100, 150, 200, 250, 300]
     
+    E_MeV_u_list = range(5, 300, 1)
     
     df_J = pd.DataFrame()
-    
-    for voltage_V in voltages:
-        for energy_MeV in range(1, 300, 1):    
-             LET_keV_um = E_MeV_to_LET_keV_um(energy_MeV)
-             ks_Jaffe = Jaffe_theory(energy_MeV, voltage_V, electrode_gap_cm)
+    for particle in ["proton", "carbon", "neon", "iron"]:
+        LET_keV_um_list = E_MeV_u_to_LET_keV_um(E_MeV_u_list, particle=particle)
+        for voltage_V in voltages:
+            for E_MeV_u, LET_keV_um in zip(E_MeV_u_list, LET_keV_um_list):    
+                
+                ks_Jaffe = Jaffe_theory(LET_keV_um, voltage_V, electrode_gap_cm)
 	     
-             row = {"E_MeV_u": energy_MeV, "LET_keV_um": LET_keV_um, 
-	            "ks_Jaffe": ks_Jaffe, "voltage_V": voltage_V,}
+                row = {"E_MeV_u": E_MeV_u, "LET_keV_um": LET_keV_um, 
+	            "ks_Jaffe": ks_Jaffe, "voltage_V": voltage_V, "particle": particle}
 
-             df_J = df_J.append(row, ignore_index=True)
+                df_J = df_J.append(row, ignore_index=True)
 	
     df_J.to_csv("data_Jaffe.csv", index=False)
     
         
     print("JAFFE FINISHED")	
-	
-    df = pd.DataFrame()
-    
-    for scale in [5, 4, 3, 2.5, 2.0, 1.75]:
-        for voltage_V in voltages:
-             for energy_MeV in range(5, 270, 20):
-                 for use_beta in [False]:
-                     if use_beta:            
-                         a0_nm_list = range(10, 50, 5)
-                     else:
-                         a0_nm_list = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
-                   
-                     for a0_nm in a0_nm_list:
-                         LET_keV_um = E_MeV_to_LET_keV_um(energy_MeV)
-                         # calculate the collection effciency with IonTracks and the Jaffe theory
-		    
-                         ks_IonTracks = IonTracks_initial_recombination(voltage_V, energy_MeV, electrode_gap_cm, a0_nm, use_beta, scale)
-                         # ks_Jaffe = Jaffe_theory(energy_MeV, voltage_V, electrode_gap_cm)
-   
-                         row = {"E_MeV_u": energy_MeV, "LET_keV_um": LET_keV_um, 
-	                        "a0_nm": a0_nm, "ks_IT": ks_IonTracks, "beta": use_beta,
-			        "scale": scale,  "voltage_V": voltage_V, 
-                                }
-                         print(row)
-                         df = df.append(row, ignore_index=True)
-	    
-        df.to_csv("result.csv", index=False)
-		    
-    
-    #results = [energy_MeV, LET_keV_um, ks_Jaffe, ks_IonTracks]
-
-    #header = "# E [MeV], LET [keV/um],  ks_Jaffe, ks_IonTracks\n"
-    #text = "     {},\t{:0.5f},   {:0.6f},\t{:0.6f}".format(*results)
-    #print(header, text)
-
 
 
     

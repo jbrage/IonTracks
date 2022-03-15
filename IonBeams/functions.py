@@ -16,13 +16,13 @@ alpha = 1.60e-6         # cm^3/s, recombination constant
 IC_angle_rad = 0.0      # not available in this version
 
 
-def Jaffe_theory(energy_MeV, voltage_V, electrode_gap_cm):
+def Jaffe_theory(LET_keV_um, voltage_V, electrode_gap_cm):
     '''
     The Jaffe theory for initial recombination. Returns the inverse
     collection efficiency, i.e. the recombination correction factor
     '''
     electric_field = voltage_V/electrode_gap_cm
-    LET_keV_um = E_MeV_to_LET_keV_um(energy_MeV)
+    # LET_keV_um = E_MeV_u_to_LET_keV_um(energy_MeV)
     LET_eV_cm = LET_keV_um * 1e7
 
     b_cm = calc_b_cm(LET_keV_um)
@@ -65,7 +65,7 @@ def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="air"):
     else: # water
         fname = "input_data/stopping_power_water.csv"
     
-    df = pd.read_csv(fname)
+    df = pd.read_csv(fname, skiprows=3)
     
     E_col_name = "E_MeV_u"
     particle_col_name = "{}_LET_keV_um".format(particle)
@@ -75,8 +75,12 @@ def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="air"):
     if not particle_col_name in df.columns:
         print("Particle {} is not supported".format(particle))
         return 0
-           
-    return float(interpolate_LET(E_MeV_u))
+	
+    if isinstance(E_MeV_u, (list, tuple, np.ndarray)):
+        LET_keV_um = [interpolate_LET(i) for i in E_MeV_u]
+    else:
+        LET_keV_um = interpolate_LET(E_MeV_u)
+    return LET_keV_um
 
 
 def E_MeV_at_reference_depth_cm(energy_MeV):
