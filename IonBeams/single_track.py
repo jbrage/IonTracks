@@ -81,9 +81,9 @@ if __name__ == "__main__":
 
     electrode_gap_cm = 0.2
     
-    voltages = [50, 100, 150, 200, 225, 250, 275, 300, 350, 400]
+    voltages = [50, 150, 200, 225, 250, 275, 400]
     
-    E_MeV_u_list = range(5, 300, 1)
+    E_MeV_u_list = range(5, 300, 2)
     
     df_J = pd.DataFrame()
     for particle in ["carbon", "neon", "argon", "iron", "proton"]:
@@ -107,5 +107,32 @@ if __name__ == "__main__":
     print("\nJaffe finished")	
 
 
+
+    df = pd.DataFrame()
+
+    for scale in [5, 4, 3, 2.5, 2.0, 1.75]:
+        for voltage_V in voltages:
+             for energy_MeV in range(5, 270, 20):
+                 for use_beta in [False]:
+                     if use_beta:            
+                         a0_nm_list = range(10, 50, 5)
+                     else:
+                         a0_nm_list = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+
+                     for a0_nm in a0_nm_list:
+                         LET_keV_um = E_MeV_to_LET_keV_um(energy_MeV)
+                         # calculate the collection effciency with IonTracks and the Jaffe theory
+
+                         ks_IonTracks = IonTracks_initial_recombination(voltage_V, energy_MeV, electrode_gap_cm, a0_nm, use_beta, scale)
+                         # ks_Jaffe = Jaffe_theory(energy_MeV, voltage_V, electrode_gap_cm)
+
+                         row = {"E_MeV_u": energy_MeV, "LET_keV_um": LET_keV_um, 
+	                        "a0_nm": a0_nm, "ks_IT": ks_IonTracks, "beta": use_beta,
+			        "scale": scale,  "voltage_V": voltage_V, 
+                                }
+                         print(row)
+                         df = df.append(row, ignore_index=True)
+
+        df.to_csv("result.csv", index=False)
     
     
