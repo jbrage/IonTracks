@@ -81,12 +81,13 @@ if __name__ == "__main__":
 
     electrode_gap_cm = 0.2
     
-    voltages = [50, 100, 150, 200, 250, 300]
+    voltages = [50, 100, 150, 200, 250, 300, 350, 400]
     
     E_MeV_u_list = range(5, 300, 1)
     
     df_J = pd.DataFrame()
-    for particle in ["proton", "carbon", "neon", "iron"]:
+    for particle in ["carbon", "neon", "argon", "iron", "proton"]:
+        print(particle)
         LET_keV_um_list = E_MeV_u_to_LET_keV_um(E_MeV_u_list, particle=particle)
         for voltage_V in voltages:
             for E_MeV_u, LET_keV_um in zip(E_MeV_u_list, LET_keV_um_list):    
