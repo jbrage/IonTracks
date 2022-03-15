@@ -62,8 +62,11 @@ def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="air"):
     
     if material == "air":
         fname = "input_data/stopping_power_air.csv"
-    else: # water
+    elif material == "water":
         fname = "input_data/stopping_power_water.csv"
+    else:
+        print("Material {} not supported".format(material))
+        return 0
     
     df = pd.read_csv(fname, skiprows=3)
     
@@ -75,7 +78,7 @@ def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="air"):
     if not particle_col_name in df.columns:
         print("Particle {} is not supported".format(particle))
         return 0
-	
+    
     if isinstance(E_MeV_u, (list, tuple, np.ndarray)):
         LET_keV_um = [interpolate_LET(i) for i in E_MeV_u]
     else:

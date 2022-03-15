@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
     electrode_gap_cm = 0.2
     
-    voltages = [50, 100, 150, 200, 250, 300, 350, 400]
+    voltages = [50, 100, 150, 200, 225, 250, 275, 300, 350, 400]
     
     E_MeV_u_list = range(5, 300, 1)
     
@@ -89,12 +89,14 @@ if __name__ == "__main__":
     for particle in ["carbon", "neon", "argon", "iron", "proton"]:
         print(particle)
         LET_keV_um_list = E_MeV_u_to_LET_keV_um(E_MeV_u_list, particle=particle)
+        water_LET_keV_um_list = E_MeV_u_to_LET_keV_um(E_MeV_u_list, particle=particle, material="water")
+	
         for voltage_V in voltages:
-            for E_MeV_u, LET_keV_um in zip(E_MeV_u_list, LET_keV_um_list):    
+            for E_MeV_u, LET_keV_um_air, LET_keV_um_water in zip(E_MeV_u_list, LET_keV_um_list, water_LET_keV_um_list):    
                 
-                ks_Jaffe = Jaffe_theory(LET_keV_um, voltage_V, electrode_gap_cm)
+                ks_Jaffe = Jaffe_theory(LET_keV_um_air, voltage_V, electrode_gap_cm)
 	     
-                row = {"E_MeV_u": E_MeV_u, "LET_keV_um": LET_keV_um, 
+                row = {"E_MeV_u": E_MeV_u, "LET_keV_um": LET_keV_um_air, "water_LET_keV_um": LET_keV_um_water, 
 	            "ks_Jaffe": ks_Jaffe, "voltage_V": voltage_V, "particle": particle}
 
                 df_J = df_J.append(row, ignore_index=True)
@@ -102,7 +104,7 @@ if __name__ == "__main__":
     df_J.to_csv("data_Jaffe.csv", index=False)
     
         
-    print("JAFFE FINISHED")	
+    print("\nJaffe finished")	
 
 
     
