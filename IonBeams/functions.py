@@ -1,11 +1,9 @@
 import mpmath
-
 import numpy as np
-
 from math import pi, exp, sin, log, sqrt
 from scipy.special import hankel1
 from scipy.interpolate import interp1d
-
+import pandas as pd
 
 mpmath.mp.dps = 50  # number of figures for computing exponential integrals
 
@@ -57,20 +55,28 @@ def Jaffe_theory(energy_MeV, voltage_V, electrode_gap_cm):
     return float(1./f)
 
 
-def E_MeV_to_LET_keV_um(energy_MeV):
+def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="air"):
     '''
     Calculate the stopping power in air using PSTAR data
     '''
-    fname = "input_data/stopping_powers.dat"
-    data = np.genfromtxt(fname, dtype=float, delimiter=" ")
-    E_MeV = data[:, 0]
-    LET_MeV_cm2_g = data[:, 1]
-    density_air_g_cm3 = 0.001225
-    LET_MeV_cm = LET_MeV_cm2_g * density_air_g_cm3
-    LET_keV_um = LET_MeV_cm / 10.0
-
-    interpolate_LET = interp1d(E_MeV, LET_keV_um)
-    return float(interpolate_LET(energy_MeV))
+    
+    if material == "air":
+        fname = "input_data/stopping_power_air.csv"
+    else: # water
+        fname = "input_data/stopping_power_water.csv"
+    
+    df = pd.read_csv(fname)
+    
+    E_col_name = "E_MeV_u"
+    particle_col_name = "{}_LET_keV_um".format(particle)
+    
+    interpolate_LET = interp1d(df[E_col_name], df[particle_col_name])
+   
+    if not particle_col_name in df.columns:
+        print("Particle {} is not supported".format(particle))
+        return 0
+           
+    return float(interpolate_LET(E_MeV_u))
 
 
 def E_MeV_at_reference_depth_cm(energy_MeV):
