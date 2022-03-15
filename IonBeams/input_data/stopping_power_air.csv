@@ -1,7 +1,7 @@
 # Provided by Libamtrack ,,,,
 # Generated: 15/3/2022 @ 13:0:7,,,,
 # Stopping power,,,,
-E_MeV_u_x,proton_LET_keV_um,carbon_LET_keV_um,neon_LET_keV_um,iron_LET_keV_um
+E_MeV_u,proton_LET_keV_um,carbon_LET_keV_um,neon_LET_keV_um,iron_LET_keV_um
 0.1,0.087892496,0.813133247,1.324670718,2.988400738
 0.101721502,0.087731792,0.817201145,1.332837013,3.011134524
 0.10347264,0.087556527,0.821172105,1.34087294,3.033665467
