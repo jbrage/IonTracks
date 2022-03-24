@@ -5,12 +5,12 @@ import numpy as np
 from lmfit.models import LinearModel
 
 
-Geiss_df = pd.read_excel("data/data_Geiss.xlsx")
+Geiss_df = pd.read_csv("data/result.csv")
 
 
 Kanai_df = pd.read_csv("data/Kanai_data_gradients.csv")
 
-Jaffe_df = pd.read_excel("data/data_Jaffe.xlsx")
+Jaffe_df = pd.read_csv("data/data_Jaffe.csv")
 Jaffe_df["water_LET_keV_um"] = Jaffe_df["LET_keV_um"] * 1000 # 1225
 # %%
 
@@ -61,6 +61,7 @@ ax.set_ylabel(r"Slope $\Delta k_s / \Delta E ^{-1}$  (V/cm)")
 
 ax.set_xlim([10, 1e4])
 ax.set_ylim([1, 1e3])
+fig.savefig("plot.pdf")
 
 
 # %%
