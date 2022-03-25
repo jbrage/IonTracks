@@ -18,6 +18,8 @@ for filename in datafiles:
     df_temp = pd.read_csv(filename)
     df = pd.concat([df_temp, df], ignore_index=True)
 
+df.to_csv("data/full_beam_df.csv", index=False)
+
 print("\n")
 fig, ax = plt.subplots()
 
