@@ -27,16 +27,15 @@ Both the IonBeams folder and the electron/photon folder feature example files.
 
 
 ## Dependencies and installation
-- The software has been tested on Ubuntu 16.04 and newer
+- The software has been tested on Ubuntu 20.04
 - Following packages are required:
 
 ```
-sudo apt install python3-numpy python3-scipy python3-matplotlib python3-mpmath
 sudo apt install python3-pip
-sudo pip install Cython
+sudo pip install Cython numpy scipy matplotlib mpmath pandas seaborn
 ```
 Run an example of the IonBeams with
 ```
-cd IonBeams/cython && make
-cd ../ && python3 example.py
+cd hadrons/cython_files && make
+cd ../ && python example_single_track.py
 ```
