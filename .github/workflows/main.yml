@@ -40,4 +40,4 @@ jobs:
           
       - name: Run example script
         run: python example_single_track.py
-        working-directory: hadrons/cython_files
+        working-directory: hadrons
