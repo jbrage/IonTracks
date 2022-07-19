@@ -19,24 +19,30 @@ data_df = pd.DataFrame.from_records(data=itertools.product(*data_dict.values()),
                                     columns=data_dict.keys())
 
 # use the Jaffe theory for initial recombination for these parameters
-Jaffe_df = pd.DataFrame()
+result_df = pd.DataFrame()
 for idx, data in data_df.iterrows():
-    result = Jaffe_theory(data.E_MeV_u, data.voltage_V, data.electrode_gap_cm, particle=data.particle, input_is_LET=False)
-    Jaffe_df = Jaffe_df.append(result, ignore_index=True)
-
-print(Jaffe_df.head())
-print(Jaffe_df["ks_Jaffe"])
+    Jaffe_df = Jaffe_theory(data.E_MeV_u, data.voltage_V, data.electrode_gap_cm, particle=data.particle, input_is_LET=False)
+    result_df = pd.concat([result_df, Jaffe_df], ignore_index=True)
 
 # plot the results
 fig, ax = plt.subplots()
-ax.set_title("{} ion, electrode gap = {} cm".format(particle, electrode_gap_cm))
-sns.lineplot(data=Jaffe_df, x="E_MeV_u", y="ks_Jaffe", hue="voltage_V", ax=ax)
+# sns.lineplot(ax=ax, data=result_df, x="E_MeV_u", y="ks_Jaffe", hue="voltage_V", style="particle")
+ax.set_xlabel("Energy (MeV/u)")
+ax.set_ylabel("$k_s$ Jaffe")
 fig.savefig("Jaffe_example.pdf", bbox_inches="tight")
 
-# use IonTracks to calculate the same
-IonTracks_result = ks_initial_IonTracks(E_MeV_u,
-                                        voltage_V,
-                                        electrode_gap_cm,
-                                        particle=particle,
-                                        RDD_model="Gauss")
-print(IonTracks_result)
+# calculate the recombination with the IonTracks code
+IonTracks_df = pd.DataFrame()
+for idx, data in data_df.iterrows():
+    IonTracks_result = ks_initial_IonTracks(E_MeV_u=data.E_MeV_u,
+                                            voltage_V=data.voltage_V,
+                                            electrode_gap_cm=data.electrode_gap_cm,
+                                            particle=data.particle,
+                                            RDD_model="Gauss")
+    IonTracks_df = pd.concat([IonTracks_df, IonTracks_result], ignore_index=True)                                            
+print(IonTracks_df)
+
+# add to the plot
+sns.scatterplot(data=IonTracks_df, ax=ax, x="E_MeV_u", y="ks_Jaffe", label="IonTracks")
+ax.set_ylabel("$k_s$")
+fig.savefig("Jaffe_theory_and_IonTracks.pdf", bbox_inches="tight")
