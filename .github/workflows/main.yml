@@ -44,3 +44,6 @@ jobs:
 
       - name: Install test dependencies
         run: pip install pytest
+
+      - name: Run unit and integration tests
+        run: pip -m pytest
