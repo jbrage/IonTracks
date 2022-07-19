@@ -4,10 +4,10 @@ from scipy.special import hankel1
 from math import pi, exp, sin, log, sqrt
 import numpy as np
 import mpmath
-from continuous_beam import continuous_beam_PDEsolver
-from initial_recombination import single_track_PDEsolver
 import sys
 sys.path.append('./cython_files')
+from continuous_beam import continuous_beam_PDEsolver
+from initial_recombination import single_track_PDEsolver
 
 
 mpmath.mp.dps = 50  # number of figures for computing exponential integrals
@@ -221,14 +221,14 @@ def IonTracks_continuous_beam(E_MeV_u,
 
     track_radius_cm = calc_b_cm(LET_keV_um)
 
-    parameter_dic = {"E_MeV_u": E_MeV_u,
-                     "LET_keV_um": float(LET_keV_um),
-                     "voltage_V": voltage_V,
-                     "particle": particle,
-                     "electrode_gap_cm": electrode_gap_cm,
-                     "doserate_Gy_min": doserate_Gy_min,
-                     "fluencerate_cm2_s": fluencerate_cm2_s
-                     }
+    result_dic = {"E_MeV_u": E_MeV_u,
+                  "LET_keV_um": float(LET_keV_um),
+                  "voltage_V": voltage_V,
+                  "particle": particle,
+                  "electrode_gap_cm": electrode_gap_cm,
+                  "doserate_Gy_min": doserate_Gy_min,
+                  "fluencerate_cm2_s": fluencerate_cm2_s
+                  }
 
     extra_params_dic = {
         "unit_length_cm": grid_size_um*1e-4,
@@ -238,7 +238,7 @@ def IonTracks_continuous_beam(E_MeV_u,
         "seed": myseed
     }
 
-    ks = continuous_beam_PDEsolver(parameter_dic, extra_params_dic)
-    parameter_dic["ks_IonTracks"] = ks
+    ks = continuous_beam_PDEsolver(result_dic, extra_params_dic)
+    result_dic["ks_IonTracks"] = ks
 
-    return parameter_dic
+    return pd.DataFrame([result_dic])
