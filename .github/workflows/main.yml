@@ -46,8 +46,4 @@ jobs:
         run: pip install pytest
 
       - name: Run unit and integration tests
-        run: |
-          pwd
-          ls -al
-          ls -al test
-          python -m pytest
+        run: python -m pytest
