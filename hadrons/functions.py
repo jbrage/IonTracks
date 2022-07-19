@@ -65,7 +65,7 @@ def Jaffe_theory(x, voltage_V, electrode_gap_cm, input_is_LET=True, particle="pr
 
     result_dic = {"particle": particle, "LET_keV_um": LET_keV_um,
                   "voltage_V": voltage_V, "electrode_gap_cm": electrode_gap_cm,
-                  "IC_angle_rad": IC_angle_rad, "ks_Jaffe": 1/f}
+                  "IC_angle_rad": IC_angle_rad, "ks_Jaffe": np.float(1/f)}
 
     if not input_is_LET:
         result_dic["E_MeV_u"] = x
