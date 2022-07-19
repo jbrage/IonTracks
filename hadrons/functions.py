@@ -150,8 +150,8 @@ def calc_b_cm(LET_keV_um):
     return b_cm
 
 
-def ks_initial_IonTracks(E_MeV_u,
-                         voltage_V,
+def ks_initial_IonTracks(E_MeV_u=200,
+                         voltage_V=200,
                          electrode_gap_cm=0.2,
                          particle="proton",
                          RDD_model="Geiss",
