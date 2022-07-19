@@ -69,7 +69,7 @@ def Jaffe_theory(x, voltage_V, electrode_gap_cm, input_is_LET=True, particle="pr
 
     if not input_is_LET:
         result_dic["E_MeV_u"] = x
-    return result_dic
+    return pd.DataFrame([result_dic])
 
 
 def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="dry_air"):
