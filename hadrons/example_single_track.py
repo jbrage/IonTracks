@@ -7,9 +7,9 @@ import itertools
 
 # set parameters
 data_dict = dict(
-    electrode_gap_cm=[0.2],
-    particle=["proton", "carbon"],  # proton, helium, argon, iron
-    voltage_V=[100, 300],
+    electrode_gap_cm=[0.1],
+    particle=["proton", "carbon"],  # proton, helium, carbon, argon, iron
+    voltage_V=[200, 300],
     E_MeV_u=np.linspace(1, 250, 100),
 )
 
@@ -32,6 +32,8 @@ ax.set_xlabel("Energy (MeV/u)")
 ax.set_ylabel("$k_s$ Jaffe")
 fig.savefig("Jaffe_example.pdf", bbox_inches="tight")
 
+print("... Jaffe theory finished")
+
 # APPLY IONTRACKS:
 # reduce the number of parameters
 data_dict["E_MeV_u"] = np.linspace(1, 250, 3)
@@ -41,17 +43,17 @@ data_df_shorter = pd.DataFrame.from_records(
 # calculate the recombination with the IonTracks code
 IonTracks_df = pd.DataFrame()
 for idx, data in data_df_shorter.iterrows():
-    result = ks_initial_IonTracks(E_MeV_u=data.E_MeV_u,
-                                  voltage_V=data.voltage_V,
-                                  electrode_gap_cm=data.electrode_gap_cm,
-                                  particle=data.particle,
-                                  RDD_model="Gauss")
+    temp_df = ks_initial_IonTracks(E_MeV_u=data.E_MeV_u,
+                                   voltage_V=data.voltage_V,
+                                   electrode_gap_cm=data.electrode_gap_cm,
+                                   particle=data.particle,
+                                   RDD_model="Gauss")
 
-    IonTracks_df = pd.concat([IonTracks_df, result], ignore_index=True)
-print(IonTracks_df)
+    IonTracks_df = pd.concat([IonTracks_df, temp_df], ignore_index=True)
+    print(IonTracks_df)
 
 # add to the plot
 sns.scatterplot(data=IonTracks_df, ax=ax, x="E_MeV_u",
-                y="ks_Jaffe", label="IonTracks")
+                y="ks", label="IonTracks")
 ax.set_ylabel("$k_s$")
 fig.savefig("Jaffe_theory_and_IonTracks.pdf", bbox_inches="tight")
