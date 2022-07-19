@@ -1,0 +1,45 @@
+name: Python tests
+
+on:
+  push:
+    branches: [ master ]
+    tags: ['*']
+  pull_request:
+    branches: [ master ]
+  release:
+    types: [ published ]
+
+jobs:
+  smoke_test:
+    # quick smoke tests
+    if: >
+      !contains(needs.initialise.outputs.commit_message, '[ci skip]') &&
+      !contains(needs.initialise.outputs.commit_message, '[skip ci]')
+    name: Fast smoke tests
+    runs-on:  ${{ matrix.platform }}
+    needs: [initialise]
+    strategy:
+       matrix:
+         python-version: ['3.8', '3.9', '3.10']
+         platform: [ubuntu-latest]  # TODO add Windows as well
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2.3.2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python --version
+          pip --version
+          pip install -r requirements.txt
+
+      - name: Compile Cython modules
+        run: make -j2
+        working-directory: hadrons/cython_files
+          
+      - name: Run example script
+        run: python example_single_track.py
+        working-directory: hadrons/cython_files
