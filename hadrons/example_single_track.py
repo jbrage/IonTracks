@@ -26,7 +26,7 @@ for idx, data in data_df.iterrows():
 
 # plot the results
 fig, ax = plt.subplots()
-# sns.lineplot(ax=ax, data=result_df, x="E_MeV_u", y="ks_Jaffe", hue="voltage_V", style="particle")
+sns.lineplot(ax=ax, data=result_df, x="E_MeV_u", y="ks_Jaffe", hue="voltage_V", style="particle")
 ax.set_xlabel("Energy (MeV/u)")
 ax.set_ylabel("$k_s$ Jaffe")
 fig.savefig("Jaffe_example.pdf", bbox_inches="tight")
