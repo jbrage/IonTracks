@@ -1,14 +1,13 @@
+import pandas as pd
+from scipy.interpolate import interp1d
+from scipy.special import hankel1
+from math import pi, exp, sin, log, sqrt
+import numpy as np
+import mpmath
+from continuous_beam import continuous_beam_PDEsolver
+from initial_recombination import single_track_PDEsolver
 import sys
 sys.path.append('./cython_files')
-
-from initial_recombination import single_track_PDEsolver
-from continuous_beam import continuous_beam_PDEsolver
-import mpmath
-import numpy as np
-from math import pi, exp, sin, log, sqrt
-from scipy.special import hankel1
-from scipy.interpolate import interp1d
-import pandas as pd
 
 
 mpmath.mp.dps = 50  # number of figures for computing exponential integrals
@@ -41,7 +40,8 @@ def Jaffe_theory(x, voltage_V, electrode_gap_cm, input_is_LET=True, particle="pr
 
     # ion track inclined with respect to the electric field?
     if abs(IC_angle_rad) > 0:
-        x = (b_cm * ion_mobility * electric_field * sin(IC_angle_rad) / (2 * ion_diff)) ** 2
+        x = (b_cm * ion_mobility * electric_field *
+             sin(IC_angle_rad) / (2 * ion_diff)) ** 2
 
         def nasty_function(y):
             order = 0.
@@ -58,8 +58,10 @@ def Jaffe_theory(x, voltage_V, electrode_gap_cm, input_is_LET=True, particle="pr
         '''
         Pretty ugly function splitted up in three parts using mpmath package for precision
         '''
-        factor = mpmath.exp(-1.0/g)*ion_mobility*b_cm**2*electric_field/(2.*g*electrode_gap_cm*ion_diff)
-        first_term = mpmath.ei(1.0/g + log(1.0 + (2.0*electrode_gap_cm*ion_diff/(ion_mobility*b_cm**2*electric_field))))
+        factor = mpmath.exp(-1.0/g)*ion_mobility*b_cm**2 * \
+            electric_field/(2.*g*electrode_gap_cm*ion_diff)
+        first_term = mpmath.ei(
+            1.0/g + log(1.0 + (2.0*electrode_gap_cm*ion_diff/(ion_mobility*b_cm**2*electric_field))))
         second_term = mpmath.ei(1.0/g)
         f = factor*(first_term - second_term)
 
@@ -69,6 +71,7 @@ def Jaffe_theory(x, voltage_V, electrode_gap_cm, input_is_LET=True, particle="pr
 
     if not input_is_LET:
         result_dic["E_MeV_u"] = x
+
     return pd.DataFrame([result_dic])
 
 
@@ -146,7 +149,7 @@ def calc_b_cm(LET_keV_um):
     threshold = 2e-3
     if b_cm < threshold:
         b_cm = threshold
-    # b_cm = 1.05*1e-3 # cm   ... Kanai, avoids ridges
+    # b_cm = 1.05*1e-3 # cm   ... Kanai, avoids edges
     return b_cm
 
 
@@ -154,7 +157,7 @@ def ks_initial_IonTracks(E_MeV_u=200,
                          voltage_V=200,
                          electrode_gap_cm=0.2,
                          particle="proton",
-                         RDD_model="Geiss",
+                         RDD_model="Gauss",
                          grid_size_um=3.0,
                          a0_nm=8.0,
                          use_beta=False,
@@ -172,26 +175,26 @@ def ks_initial_IonTracks(E_MeV_u=200,
     LET_keV_um = E_MeV_u_to_LET_keV_um(E_MeV_u, particle)
     track_radius_cm = calc_b_cm(LET_keV_um)
 
-    parameter_dic = {"E_MeV_u": E_MeV_u,
-                     "voltage_V": voltage_V,
-                     "electrode_gap_cm": electrode_gap_cm,
-                     "LET_keV_um": float(LET_keV_um),
-                     "a0_nm": a0_nm,
-                     "RDD_model": RDD_model,
-                     "IC_angle_rad": theta_rad,
-                     }
+    result_dic = {"E_MeV_u": E_MeV_u,
+                  "voltage_V": voltage_V,
+                  "electrode_gap_cm": electrode_gap_cm,
+                  "LET_keV_um": float(LET_keV_um),
+                  "a0_nm": a0_nm,
+                  "particle": particle,
+                  "RDD_model": RDD_model,
+                  "IC_angle_rad": theta_rad,
+                  }
 
     extra_params_dic = {
         "unit_length_cm": grid_size_um*1e-4,
-        "track_radius_cm": track_radius_cm,        
+        "track_radius_cm": track_radius_cm,
         "SHOW_PLOT": SHOW_PLOT,
         "PRINT_parameters": PRINT_parameters,
     }
 
-    ks = single_track_PDEsolver(parameter_dic, extra_params_dic)
-    parameter_dic["ks"] = ks
-    return parameter_dic
-
+    ks = single_track_PDEsolver(result_dic, extra_params_dic)
+    result_dic["ks"] = ks
+    return pd.DataFrame([result_dic])
 
 
 def IonTracks_continuous_beam(E_MeV_u,
@@ -213,14 +216,15 @@ def IonTracks_continuous_beam(E_MeV_u,
     '''
 
     LET_keV_um = E_MeV_u_to_LET_keV_um(E_MeV_u, particle=particle)
-    fluencerate_cm2_s = doserate_to_fluence(doserate_Gy_min, E_MeV_u, particle=particle)
+    fluencerate_cm2_s = doserate_to_fluence(
+        doserate_Gy_min, E_MeV_u, particle=particle)
 
     track_radius_cm = calc_b_cm(LET_keV_um)
 
     parameter_dic = {"E_MeV_u": E_MeV_u,
-                     "LET_keV_um": float(LET_keV_um), 
+                     "LET_keV_um": float(LET_keV_um),
                      "voltage_V": voltage_V,
-                     "particle": particle, 
+                     "particle": particle,
                      "electrode_gap_cm": electrode_gap_cm,
                      "doserate_Gy_min": doserate_Gy_min,
                      "fluencerate_cm2_s": fluencerate_cm2_s
@@ -236,5 +240,5 @@ def IonTracks_continuous_beam(E_MeV_u,
 
     ks = continuous_beam_PDEsolver(parameter_dic, extra_params_dic)
     parameter_dic["ks_IonTracks"] = ks
-    
+
     return parameter_dic
