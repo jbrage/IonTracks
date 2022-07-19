@@ -9,7 +9,7 @@ import itertools
 data_dict = dict(
     electrode_gap_cm=[0.1],
     particle=["proton", "carbon"],  # proton, helium, carbon, argon, iron
-    voltage_V=[200],
+    voltage_V=[200, 300],
     E_MeV_u=np.linspace(1, 250, 100),
 )
 
