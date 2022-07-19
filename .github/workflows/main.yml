@@ -10,14 +10,12 @@ on:
     types: [ published ]
 
 jobs:
-  smoke_test:
-    # quick smoke tests
+  example_test:
     if: >
       !contains(needs.initialise.outputs.commit_message, '[ci skip]') &&
       !contains(needs.initialise.outputs.commit_message, '[skip ci]')
-    name: Fast smoke tests
+    name: Fast tests
     runs-on:  ${{ matrix.platform }}
-    needs: [initialise]
     strategy:
        matrix:
          python-version: ['3.8', '3.9', '3.10']
