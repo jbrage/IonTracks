@@ -41,3 +41,9 @@ jobs:
       - name: Run example script
         run: python example_single_track.py
         working-directory: hadrons
+
+      - name: Install test dependencies
+        run: pip install pytest
+
+      - name: Run unit and integration tests
+        run: python -m pytest
