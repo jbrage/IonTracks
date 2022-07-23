@@ -1,3 +1,5 @@
+from initial_recombination import single_track_PDEsolver
+from continuous_beam import continuous_beam_PDEsolver
 import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.special import hankel1
@@ -5,10 +7,11 @@ from math import pi, exp, sin, log, sqrt
 import numpy as np
 import mpmath
 import sys
-sys.path.append('./cython_files')
-from continuous_beam import continuous_beam_PDEsolver
-from initial_recombination import single_track_PDEsolver
+from pathlib import Path
 
+sys.path.append('./cython_files')
+
+ABS_PATH = str(Path(__file__).parent.absolute())
 
 mpmath.mp.dps = 50  # number of figures for computing exponential integrals
 # general parameters
@@ -19,7 +22,7 @@ ion_diff = 3.7e-2       # cm^2/s, averaged for positive and negative ions
 alpha = 1.60e-6         # cm^3/s, recombination constant
 
 
-def Jaffe_theory(x, voltage_V, electrode_gap_cm, input_is_LET=True, particle="proton", IC_angle_rad=0.):
+def Jaffe_theory(x, voltage_V, electrode_gap_cm, input_is_LET=True, particle="proton", IC_angle_rad=0., **rest):
     '''
     The Jaffe theory for initial recombination. Returns the inverse
     collection efficiency, i.e. the recombination correction factor
@@ -80,7 +83,7 @@ def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="dry_air"):
     Calculate the stopping power in dry air or water using PSTAR data
     '''
 
-    folder_name = "data_LET/"
+    folder_name = ABS_PATH + "/data_LET/"
     if material == "dry_air":
         fname = folder_name + "stopping_power_air.csv"
     elif material == "water":
@@ -137,7 +140,7 @@ def calc_b_cm(LET_keV_um):
     Calculate the Gaussian track radius as suggested by Rossomme et al.
     Returns the track radius in cm given a LET [keV/um]
     '''
-    data = np.genfromtxt("data_LET/LET_b.dat", delimiter=",", dtype=float)
+    data = np.genfromtxt(f"{ABS_PATH}/data_LET/LET_b.dat", delimiter=",", dtype=float)
     scale = 1e-3
     LET = data[:, 0] * scale
     b = data[:, 1]
