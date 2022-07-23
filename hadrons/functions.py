@@ -166,7 +166,8 @@ def ks_initial_IonTracks(E_MeV_u=200,
                          use_beta=False,
                          PRINT_parameters=False,
                          SHOW_PLOT=False,
-                         theta_rad=0):
+                         theta_rad=0,
+                         **rest):
 
     # requires the installation of the libamtrack package
     if use_beta:
