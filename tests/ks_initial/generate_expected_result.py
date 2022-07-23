@@ -28,7 +28,7 @@ def configure_parser():
 
 def results_file_exist():
     try:
-        np.load(f'{ABS_PATH}/expected.npy', allow_pickle=True)
+        np.load(Path(ABS_PATH,'expected.npy'), allow_pickle=True)
         return True
     except FileNotFoundError:
         return False
