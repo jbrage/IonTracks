@@ -140,7 +140,7 @@ def calc_b_cm(LET_keV_um):
     Calculate the Gaussian track radius as suggested by Rossomme et al.
     Returns the track radius in cm given a LET [keV/um]
     '''
-    data = np.genfromtxt(f"{ABS_PATH}/data_LET/LET_b.dat", delimiter=",", dtype=float)
+    data = np.genfromtxt(Path(ABS_PATH, "data_LET", "LET_b.dat"), delimiter=",", dtype=float)
     scale = 1e-3
     LET = data[:, 0] * scale
     b = data[:, 1]
