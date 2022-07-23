@@ -83,7 +83,7 @@ def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="dry_air"):
     Calculate the stopping power in dry air or water using PSTAR data
     '''
 
-    folder_name = ABS_PATH + "/data_LET/"
+    folder_name = Path(ABS_PATH, "data_LET")
     if material == "dry_air":
         fname = folder_name + "stopping_power_air.csv"
     elif material == "water":
