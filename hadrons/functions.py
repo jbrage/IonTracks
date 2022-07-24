@@ -85,22 +85,22 @@ def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="dry_air"):
 
     folder_name = Path(ABS_PATH, "data_LET")
     if material == "dry_air":
-        fname = folder_name + "stopping_power_air.csv"
+        fname = Path(folder_name, "stopping_power_air.csv")
     elif material == "water":
-        fname = folder_name + "stopping_power_water.csv"
+        fname = Path(folder_name, "stopping_power_water.csv")
     else:
-        print("Material {} not supported".format(material))
+        print(f"Material {material} not supported")
         return 0
 
     # load the data frame
     df = pd.read_csv(fname, skiprows=3)
 
     # LET data for the chosen particle
-    particle_col_name = "{}_LET_keV_um".format(particle)
+    particle_col_name = f"{particle}_LET_keV_um"
 
     # check if the particle LET was included
     if not particle_col_name in df.columns:
-        print("Particle {} is not supported".format(particle))
+        print(f"Particle {particle} is not supported")
         return 0
 
     # energy column
@@ -167,7 +167,7 @@ def ks_initial_IonTracks(E_MeV_u=200,
                          PRINT_parameters=False,
                          SHOW_PLOT=False,
                          theta_rad=0,
-                         **rest):
+                         **kw_args):
 
     # requires the installation of the libamtrack package
     if use_beta:

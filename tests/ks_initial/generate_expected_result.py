@@ -5,7 +5,7 @@ import sys
 import os
 from pathlib import Path
 from hadrons.functions import Jaffe_theory
-from testing_parameters import MATRIX_DF
+from testing_parameters import MATRIX_DF, TEST_DATA_DICT
 
 # absolute path of the file as string
 ABS_PATH = str(Path(__file__).parent.absolute())
@@ -41,7 +41,7 @@ def main():
     if not args.override and results_file_exist():
         return
 
-    np.save(f'{ABS_PATH}/expected.npy', calculate_expected_df())
+    np.save(f'{ABS_PATH}/expected.npy', calculate_expected_df().to_records())
 
 
 if __name__ == '__main__':
