@@ -21,7 +21,7 @@ def calculate_expected_df():
 
 def configure_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--override', type=bool, default=False, help='Override previous generation')
+    parser.add_argument('--override', type=bool, default=False, help='Override previously generated reference data')
     return parser
 
 
