@@ -42,7 +42,7 @@ def main():
 
     Path(ABS_PATH,'expected.npy').unlink(missing_ok=True)
 
-    np.save(f'{ABS_PATH}/expected.npy', calculate_expected_df().to_records())
+    np.save(Path(ABS_PATH, 'expected.npy'), calculate_expected_df().to_records())
 
 
 if __name__ == '__main__':

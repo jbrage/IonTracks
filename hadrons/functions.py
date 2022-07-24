@@ -99,7 +99,7 @@ def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="dry_air"):
     particle_col_name = f"{particle}_LET_keV_um"
 
     # check if the particle LET was included
-    if not particle_col_name in df.columns:
+    if particle_col_name not in df.columns:
         print(f"Particle {particle} is not supported")
         return 0
 
