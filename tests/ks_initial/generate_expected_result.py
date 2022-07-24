@@ -41,6 +41,8 @@ def main():
     if not args.override and results_file_exist():
         return
 
+    os.unlink(Path(ABS_PATH,'expected.npy'))
+
     np.save(f'{ABS_PATH}/expected.npy', calculate_expected_df().to_records())
 
 

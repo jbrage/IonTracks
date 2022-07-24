@@ -40,8 +40,22 @@ def single_track_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle,
 
 def test_single_track_PDEsolver(single_track_PDEsolver_input, expected_result):
     calculated_result = single_track_PDEsolver(*single_track_PDEsolver_input)
+
+    def row_filter(row):    
+        return (
+            row.particle == single_track_PDEsolver_input.particle and
+            np.allclose(row.LET_keV_um, single_track_PDEsolver_input.LET_keV_um) and
+            row.voltage_V == single_track_PDEsolver_input.voltage_V and
+            row.electrode_gap_cm == single_track_PDEsolver_input.electrode_gap_cm and
+            row.IC_angle_rad == single_track_PDEsolver_input.IC_angle_rad and
+            row.E_MeV_u == single_track_PDEsolver_input.E_MeV_u
+        )
+
+    expected = expected_result[[idx for idx, row in enumerate(expected_result) if row_filter(row)]]
+
+    assert len(expected) == 1
     
-    assert np.allclose(expected_result['ks_Jaffe'], calculated_result)
+    assert np.allclose(expected['ks_Jaffe'], calculated_result)
 
 
 def test_ks_initial_IonTracks(expected_result):
