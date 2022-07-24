@@ -51,9 +51,7 @@ def test_single_track_PDEsolver(single_track_PDEsolver_input, expected_result):
             row.E_MeV_u == single_track_PDEsolver_input.E_MeV_u
         )
 
-    expected = expected_result[[idx for idx, row in enumerate(expected_result) if row_filter(row)]]
-
-    assert len(expected) == 1
+    expected = expected_result[[idx for idx, row in enumerate(expected_result) if row_filter(row)]][0]
     
     assert np.allclose(expected['ks_Jaffe'], calculated_result)
 
