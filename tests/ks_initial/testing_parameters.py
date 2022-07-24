@@ -4,12 +4,12 @@ import itertools
 
 # set parameters
 TEST_DATA_DICT = dict(
-    E_MeV_u=10*np.arange(1, 26, 2),
-    voltage_V=50*np.arange(1, 7),
+    E_MeV_u=[10, 20, 30, 60, 150, 250],
+    voltage_V=[50, 100, 200, 300],
     electrode_gap_cm=[0.2],
     # currently jaffe theory crashes for oxygen and helium
     particle=["proton", "carbon"],
-    grid_size_um=np.arange(1, 11),
+    grid_size_um=[1, 5, 10],
 )
 
 # create a data frame with all the variables (combinations matrix)
