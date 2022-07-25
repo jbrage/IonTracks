@@ -34,16 +34,16 @@ def get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_siz
         "PRINT_parameters": False,
     })
 
-# @pytest.mark.parametrize("E_MeV_u", TEST_DATA_DICT["E_MeV_u"])
-# @pytest.mark.parametrize("voltage_V", TEST_DATA_DICT["voltage_V"])
-# @pytest.mark.parametrize("electrode_gap_cm", TEST_DATA_DICT["electrode_gap_cm"])
-# @pytest.mark.parametrize("particle", TEST_DATA_DICT["particle"])
-# @pytest.mark.parametrize("grid_size_um", TEST_DATA_DICT["grid_size_um"])
-@pytest.mark.parametrize("E_MeV_u", [250])
-@pytest.mark.parametrize("voltage_V", [50])
-@pytest.mark.parametrize("electrode_gap_cm", [0.2])
-@pytest.mark.parametrize("particle", ["proton"])
-@pytest.mark.parametrize("grid_size_um", [5])
+@pytest.mark.parametrize("E_MeV_u", TEST_DATA_DICT["E_MeV_u"])
+@pytest.mark.parametrize("voltage_V", TEST_DATA_DICT["voltage_V"])
+@pytest.mark.parametrize("electrode_gap_cm", TEST_DATA_DICT["electrode_gap_cm"])
+@pytest.mark.parametrize("particle", TEST_DATA_DICT["particle"])
+@pytest.mark.parametrize("grid_size_um", TEST_DATA_DICT["grid_size_um"])
+# @pytest.mark.parametrize("E_MeV_u", [250])
+# @pytest.mark.parametrize("voltage_V", [50])
+# @pytest.mark.parametrize("electrode_gap_cm", [0.2])
+# @pytest.mark.parametrize("particle", ["proton"])
+# @pytest.mark.parametrize("grid_size_um", [5])
 def test_single_track_PDEsolver(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um, expected_result):
     single_track_PDEsolver_input = get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um)
     calculated_result = single_track_PDEsolver(*single_track_PDEsolver_input)
@@ -64,7 +64,7 @@ def test_single_track_PDEsolver(E_MeV_u, voltage_V, electrode_gap_cm, particle, 
 
     assert len(expected) > 0
     
-    assert np.allclose(expected[0]['ks_Jaffe'], calculated_result)
+    assert np.allclose(expected[0]['ks_Jaffe'], calculated_result, rtol=1e-3)
 
 
 # def test_ks_initial_IonTracks(expected_result):
