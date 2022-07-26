@@ -48,7 +48,7 @@ extensions = [
 
 if CYTHONIZE:
     compiler_directives = {"language_level": 3, "embedsignature": True}
-    extensions = cythonize(extensions, compiler_directives=compiler_directives)
+    extensions = cythonize(module_list=extensions, compiler_directives=compiler_directives)
 else:
     extensions = no_cythonize(extensions)
 

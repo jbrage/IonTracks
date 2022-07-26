@@ -42,6 +42,7 @@ Create python virtual environment `venv`, a directory which will hold compiled v
 
 ```
 python -m venv venv
+source venv/bin/activate
 ```
 
 Compile this package and all its requirements:
