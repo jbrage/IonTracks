@@ -6,10 +6,8 @@ import pytest
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from tests.ks_initial.testing_parameters import MATRIX_DF, TEST_DATA_DICT
-from hadrons.functions import ks_initial_IonTracks
+from tests.ks_initial.testing_parameters import TEST_DATA_DICT
 from hadrons.cython_files.initial_recombination import single_track_PDEsolver
-from tests.conftest import expected_result
 from hadrons.functions import E_MeV_u_to_LET_keV_um, calc_b_cm
 
 
@@ -43,7 +41,10 @@ def test_single_track_PDEsolver(E_MeV_u, voltage_V, electrode_gap_cm, particle, 
     single_track_PDEsolver_input = get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um)
     calculated_result = single_track_PDEsolver(*single_track_PDEsolver_input)
 
-    # TODO: Add sanity tests here
+    assert calculated_result is not None
+    assert isinstance(calculated_result, float)
+    # TODO: Add resonable range sanity test here
+    # assert calculated_result >= reasonable_minimum and calculated_result <= reasonable_maximum
 
     def row_filter(row):    
         return (
