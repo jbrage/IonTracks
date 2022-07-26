@@ -39,7 +39,7 @@ jobs:
         working-directory: hadrons
 
       - name: Install test dependencies
-        run: pip install pytest
+        run: pip install pytest pytest-xdist
 
       - name: Run unit and integration tests
         run: python -m pytest -n 2
