@@ -1,19 +1,20 @@
 import os
 from setuptools import setup, find_packages, Extension
-
 from setuptools.command.build_ext import build_ext as _build_ext
-
-
 
 try:
     from Cython.Build import cythonize
 except ImportError:
     cythonize = None
 
+''' this code is inspired by  https://github.com/FedericoStra/cython-package-example '''
+
+
 class build_ext(_build_ext):
     """
     From https://stackoverflow.com/questions/19919905/how-to-bootstrap-numpy-installation-in-setup-py/21621689#21621689
     """
+
     def finalize_options(self):
         _build_ext.finalize_options(self)
         # Prevent numpy from thinking it is still in its setup process:
@@ -39,13 +40,12 @@ def no_cythonize(extensions, **_ignore):
         extension.sources[:] = sources
     return extensions
 
+CYTHONIZE = bool(int(os.getenv("CYTHONIZE", 0))) and cythonize is not None
+
 extensions = [
     Extension("hadrons.cython_files.continuous_beam", ["hadrons/cython_files/continuous_beam.pyx"]),
     Extension("hadrons.cython_files.initial_recombination", ["hadrons/cython_files/initial_recombination.pyx"]),
 ]
-
-CYTHONIZE = bool(int(os.getenv("CYTHONIZE", 0))) and cythonize is not None
-
 
 if CYTHONIZE:
     compiler_directives = {"language_level": 3, "embedsignature": True}
@@ -56,26 +56,11 @@ else:
 with open("requirements.txt") as fp:
     install_requires = fp.read().strip().split("\n")
 
-# nice example here https://github.com/FedericoStra/cython-package-example
 setup(
     cmdclass={'build_ext': build_ext},
     ext_modules=extensions,
     install_requires=install_requires,
     setup_requires=[
-         "numpy", "cython"
-     ]
+        "numpy", "cython"
+    ]
 )
-
-# setup(
-#     ext_modules=cythonize([
-#         'hadrons/cython_files/initial_recombination.pyx', 
-#         'hadrons/cython_files/continuous_beam.pyx',
-#     ]),
-#     include_dirs=[numpy.get_include()],
-#     setup_requires=[
-#         "cython",
-#     ],
-#     # include_package_data=True,
-#     # zip_safe=False,
-# )
-
