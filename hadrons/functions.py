@@ -22,7 +22,7 @@ ion_diff = 3.7e-2       # cm^2/s, averaged for positive and negative ions
 alpha = 1.60e-6         # cm^3/s, recombination constant
 
 
-def Jaffe_theory(x, voltage_V, electrode_gap_cm, input_is_LET=True, particle="proton", IC_angle_rad=0., **rest):
+def Jaffe_theory(x, voltage_V, electrode_gap_cm, input_is_LET=True, particle="proton", IC_angle_rad=0., **kwargs):
     '''
     The Jaffe theory for initial recombination. Returns the inverse
     collection efficiency, i.e. the recombination correction factor
@@ -167,7 +167,7 @@ def ks_initial_IonTracks(E_MeV_u=200,
                          PRINT_parameters=False,
                          SHOW_PLOT=False,
                          theta_rad=0,
-                         **kw_args):
+                         **kwargs):
 
     # requires the installation of the libamtrack package
     if use_beta:
