@@ -28,22 +28,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install dependencies and iontracks package
         run: |
           python --version
           pip --version
-          pip install -r requirements.txt
-        
-      - name: Compile Cython modules
-        run: make -j2
-        working-directory: hadrons/cython_files
+          pip install --editable .
 
-      - name: debug show repo contents
-        run: ls -lR
-          
       - name: Run example script
-        run: PYTHONPATH=. python hadrons/example_single_track.py
-        # working-directory: hadrons
+        run: python example_single_track.py
+        working-directory: hadrons
 
       - name: Install test dependencies
         run: pip install pytest
