@@ -34,10 +34,6 @@ jobs:
           pip --version
           pip install --editable .
 
-      - name: Compile Cython modules
-        run: make -j2
-        working-directory: hadrons/cython_files
-
       - name: Run example script
         run: python example_single_track.py
         working-directory: hadrons
