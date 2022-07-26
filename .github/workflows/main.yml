@@ -32,7 +32,7 @@ jobs:
         run: |
           python --version
           pip --version
-          pip install --editable .
+          CYTHONIZE=1 pip install --editable .
 
       - name: Run example script
         run: python example_single_track.py
