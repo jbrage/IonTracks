@@ -35,13 +35,27 @@ Both the IonBeams folder and the electron/photon folder feature example files.
 - Following packages are required:
 
 ```
-sudo apt install python3-pip
-sudo pip install -r requirements.txt
+sudo apt install python3-pip python3-venv
 ```
 
-Run an example of the IonBeams with
+Create python virtual environment `venv`, which is a directory which will hold compiled version of this package and all the libraries it needs to run:
 
 ```
-cd hadrons/cython_files && make
-cd ../ && python example_single_track.py
+python -m venv venv
+```
+
+Compile this package and all its requirements:
+
+```
+CYTHONIZE=1 pip install --editable .
+```
+
+Run the example script:
+```
+python hadrons/example_single_track.py
+```
+
+When you are done, deactivate your virtual enviroment:
+```
+deactivate
 ```
