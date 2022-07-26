@@ -39,11 +39,11 @@ jobs:
         working-directory: hadrons/cython_files
           
       - name: Run example script
-        run: python example_single_track.py
-        working-directory: hadrons
+        run: PYTHONPATH=. python example_single_track.py
+        # working-directory: hadrons
 
       - name: Install test dependencies
         run: pip install pytest
 
       - name: Run unit and integration tests
-        run: python -m pytest
+        run: PYTHONPATH=. python -m pytest
