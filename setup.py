@@ -47,6 +47,9 @@ extensions = [
 ]
 
 if CYTHONIZE:
+    # description of compiler directives: https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#compiler-directives
+    # language_level 3 enables and enforces Python 3 semantics
+    # embedsignature  Cython will embed a textual copy of the call signature in the docstring of all Python visible functions and classes
     compiler_directives = {"language_level": 3, "embedsignature": True}
     extensions = cythonize(module_list=extensions, compiler_directives=compiler_directives)
 else:
