@@ -34,6 +34,9 @@ jobs:
           pip --version
           pip install -r requirements.txt
 
+      - name: debug show repo contents
+        run: ls -lR
+        
       - name: Compile Cython modules
         run: make -j2
         working-directory: hadrons/cython_files
