@@ -42,4 +42,4 @@ jobs:
         run: pip install pytest
 
       - name: Run unit and integration tests
-        run: PYTHONPATH=. python -m pytest
+        run: python -m pytest
