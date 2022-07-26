@@ -8,7 +8,7 @@ import pandas as pd
 from pathlib import Path
 from tests.ks_initial.testing_parameters import MATRIX_DF, TEST_DATA_DICT
 from hadrons.functions import ks_initial_IonTracks
-from initial_recombination import single_track_PDEsolver
+from hadrons.cython_files.initial_recombination import single_track_PDEsolver
 from tests.conftest import expected_result
 from hadrons.functions import E_MeV_u_to_LET_keV_um, calc_b_cm
 
@@ -39,16 +39,11 @@ def get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_siz
 @pytest.mark.parametrize("electrode_gap_cm", TEST_DATA_DICT["electrode_gap_cm"])
 @pytest.mark.parametrize("particle", TEST_DATA_DICT["particle"])
 @pytest.mark.parametrize("grid_size_um", TEST_DATA_DICT["grid_size_um"])
-# @pytest.mark.parametrize("E_MeV_u", [250])
-# @pytest.mark.parametrize("voltage_V", [50])
-# @pytest.mark.parametrize("electrode_gap_cm", [0.2])
-# @pytest.mark.parametrize("particle", ["proton"])
-# @pytest.mark.parametrize("grid_size_um", [5])
 def test_single_track_PDEsolver(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um, expected_result):
     single_track_PDEsolver_input = get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um)
     calculated_result = single_track_PDEsolver(*single_track_PDEsolver_input)
 
-    # TODO: Add samity tests here
+    # TODO: Add sanity tests here
 
     def row_filter(row):    
         return (
@@ -67,17 +62,3 @@ def test_single_track_PDEsolver(E_MeV_u, voltage_V, electrode_gap_cm, particle, 
     assert len(expected) > 0
     
     assert np.allclose(expected[0]['ks_Jaffe'], calculated_result, rtol=1e-3)
-
-
-# def test_ks_initial_IonTracks(expected_result):
-#     # DISABLED FOR NOW, fihish testing lower level functions first
-
-#     IonTracks_df = pd.DataFrame()
-
-#     for _, data in MATRIX_DF.iterrows():
-#         temp_df = ks_initial_IonTracks(**data,
-#                                        RDD_model="Gauss")
-
-#         IonTracks_df = pd.concat([IonTracks_df, temp_df], ignore_index=True)
-
-#     assert np.allclose(IonTracks_df.values, expected_result)
