@@ -1,5 +1,5 @@
 from hadrons.cython_files.initial_recombination import single_track_PDEsolver
-from continuous_beam import continuous_beam_PDEsolver
+from hadrons.cython_files.continuous_beam import continuous_beam_PDEsolver
 import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.special import hankel1

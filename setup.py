@@ -5,13 +5,14 @@ import numpy
 
 setup(
     ext_modules=cythonize([
-        'initial_recombination.pyx', 
-        'continuous_beam.pyx',
+        'hadrons/cython_files/initial_recombination.pyx', 
+        'hadrons/cython_files/continuous_beam.pyx',
     ]),
     include_dirs=[numpy.get_include()],
-    setup_requires=[
-        "cython >= 0.22.1",
-    ],
+    # setup_requires=[
+    #     "cython",
+    # ],
     # include_package_data=True,
     # zip_safe=False,
 )
+
