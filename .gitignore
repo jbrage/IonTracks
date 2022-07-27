@@ -4,6 +4,7 @@
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
+__pycache__/*
 *.py[cod]
 *$py.class
 
@@ -189,3 +190,7 @@ cython_debug/
 *.code-workspace
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
+testpad.ipynb
+IonTracks.csv
+Jaffe_example.pdf
+Jaffe_theory_and_IonTracks.pdf

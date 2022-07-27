@@ -35,6 +35,6 @@ def test_example_results():
 
     # reset current working directory to the original value
     os.chdir(current_working_dir)
-
+    
     # check if reference dataframe is the same as the generated one
     assert_frame_equal(df, ref_df)

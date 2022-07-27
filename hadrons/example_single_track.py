@@ -34,7 +34,7 @@ print("... Jaffe theory finished")
 
 # APPLY IONTRACKS:
 # reduce the number of parameters
-data_dict["E_MeV_u"] = np.linspace(1, 250, 3)
+data_dict["E_MeV_u"] = [60, 250]
 data_df_shorter = pd.DataFrame.from_records(data=itertools.product(*data_dict.values()), columns=data_dict.keys())
 
 # calculate the recombination with the IonTracks code
