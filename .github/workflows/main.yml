@@ -19,7 +19,7 @@ jobs:
     strategy:
        matrix:
          python-version: ['3.8', '3.9', '3.10']
-         platform: [ubuntu-latest, windows-latests, ubuntu-22.04] 
+         platform: [ubuntu-20.04, windows-latests, ubuntu-22.04]  # as for now ubuntu-latest points to 20.04
     steps:
       - uses: actions/checkout@v3
 
@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies and iontracks package
+      - name: Install dependencies and IonTracks package
         run: |
           python --version
           pip --version
