@@ -1,95 +1,98 @@
-import numpy as np
 from electrons.cython.continuous_e_beam import continuous_beam_PDEsolver
-import matplotlib.colors as colors
+from Boag_theory import Boag_continuous, e_charge
 import matplotlib.pyplot as plt
-from Boag_theory import Boag_Continuous
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import itertools
 
 
-def IonTracks_continuous(voltage_V, d_cm, elec_per_cm3):
+def IonTracks_continuous(voltage_V=300, electrode_gap_cm=0.1, elec_per_cm3=1e9, show_plot=False, print_parameters=False):
 
-    '''
-    Solve the partial differential equation:
-        - SHOW_PLOT = True shows a few pictures of the charge carrier movements
-        - PRINT_parameters = True prints the simulation parameters
-            (grid size, time steps, useful for debugging)
-    '''
+    # convert to a dict
+    parameters = {"voltage_V": voltage_V,
+    	          "d_cm": electrode_gap_cm, 
+    	          "elec_per_cm3": elec_per_cm3,
+    	          "show_plot": show_plot,  
+                  "print_parameters" : print_parameters,
+                  }      
 
-    SHOW_PLOT = False
-    PRINT_parameters = False
-    simulation_parameters = [
-                                elec_per_cm3,
-                                voltage_V,
-                                d_cm,
-                                SHOW_PLOT,
-                                PRINT_parameters
-                            ]
-    f, f_steps, dt, collection_time_steps = continuous_beam_PDEsolver(simulation_parameters)
+    result_df, time_variation_df = continuous_beam_PDEsolver(parameters)    
 
-    time_s = np.arange(0, len(f_steps)*dt, dt)
-    sep_time_s = collection_time_steps*dt*2
+    return result_df, time_variation_df
 
-    f = f_steps[-1]
-    # plt.figure()
-    # plt.plot(time_s, f_steps)
-    # plt.plot([sep_time_s, sep_time_s], [min(f_steps), max(f_steps)])
-    #
-    # plt.xlabel("Time [s]")
-    # plt.ylabel("Collection efficiency $f$")
-    # plt.savefig("recomb_cont.pdf")
 
-    return f
 
 
 if __name__ == "__main__":
 
+    """"
+    # calculate an example for default parameters
+    result_df, time_variation_df = IonTracks_continuous()
+    print(result_df)
+    
+    # plot the result to show how the charge collection converges after the time it takes for 
+    # a partcile to move between the two electrodes. This is the recombination in the continuous situaiton
+    fig, ax = plt.subplots()
+    ax.set_title("Charge collection versus time")
+    sns.lineplot(ax=ax, data=time_variation_df, x="time_us", y="f", label="Charge collection")
+    ax.set_xlabel("time (us)")
+    ax.set_ylabel("Collection efficiency")    
+    ax.axvline(x=result_df["convergence_time_s"].values * 1e6, label="Drift time b/w gap", c="r", ls=":")
+    ax.axhline(y=result_df["f"].values, label="Converged efficiency", c="r", ls="--")    
+    ax.ticklabel_format(style="plain")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig("fig_charge_collection_versus_time.pdf", bbox_inches="tight")
+"""   
+        
+    # compare the IonTracks results to the Boag theory for a continuous beam
+    
+    # set parameters for the IonTracks calculation
+    d_cm = 0.1
+    charge_density_C_cm3_s = np.asarray([0.02, 0.08]) * 1e-6
+    data_dict = dict(
+        electrode_gap_cm=[d_cm],
+        elec_per_cm3_s = charge_density_C_cm3_s/ e_charge,
+        voltage_V = np.asarray([60, 120, 200]),
+    )
+        
+    # create a data frame with all the variables
+    data_df = pd.DataFrame.from_records(data=itertools.product(*data_dict.values()), columns=data_dict.keys())
 
-    d_cm = 0.2 # electrode gap
-    voltages_V = np.asarray([60, 120,  200])
+    # Calculate the recombination using IonTracks
+    IonTracks_df = pd.DataFrame()
+    for idx, data in data_df.iterrows():
+        result_df, _ = IonTracks_continuous(voltage_V=data.voltage_V, electrode_gap_cm=data.electrode_gap_cm, elec_per_cm3=data.elec_per_cm3_s)
+        IonTracks_df = pd.concat([IonTracks_df, result_df], ignore_index=True)    
+    print(IonTracks_df)
 
-    # preallocate arrays
-    voltages_LS = np.linspace(min(voltages_V), max(voltages_V), 100)
-    f_result_IonTracks = np.empty(len(voltages_V))
-    f_result_Boag = np.empty((3, len(voltages_LS)))
+    # rename for plot
+    IonTracks_df["electron_density"] = IonTracks_df["elec_per_cm3"].map("IonTracks: {:0.2E} e$^{{-}}$/cm$^3$".format)
+    
+    
+    # generate the data for the Boag theory
+    data_dict["charge_density_C_cm3_s"] = charge_density_C_cm3_s # replace by the charge density, not electron
+    data_dict["voltage_V"] = 10 **np.linspace(np.log10(IonTracks_df.voltage_V.min()), np.log10(IonTracks_df.voltage_V.max()), 100)
+    Boag_df = pd.DataFrame.from_records(data=itertools.product(*data_dict.values()), columns=data_dict.keys())
 
-    # charge densities (convert from dose-rate in air?)
-    e_charge = 1.60217662e-19 # [C]
-    charge_density_C_cm3 = [0.02*1e-6, 0.08*1e-6]
+    # calculate the Boag collection efficiency for each point
+    for idx, data in Boag_df.iterrows():
+        f, _, _ = Boag_continuous(Qdensity_C_cm3_s=data.charge_density_C_cm3_s, d_cm=data.electrode_gap_cm, V=data.voltage_V)
+        Boag_df.loc[idx, "f"] = f
+    Boag_df["ks"] = 1 / Boag_df["f"]
+    Boag_df["charge_density_C_cm3_s"] = Boag_df["charge_density_C_cm3_s"].map("Boag: {:0.2E} C/cm$^3$".format)
+    
+    # plot the results
+    fig, ax = plt.subplots()
+    
+    sns.lineplot(ax=ax, data=Boag_df, x="voltage_V", y="ks", hue="charge_density_C_cm3_s")
+    sns.scatterplot(ax=ax, data=IonTracks_df, x="voltage_V", y="ks", hue="electron_density")    
 
-    # prepare plot
-    clist = [i for i in colors.get_named_colors_mapping()]
-    Boag_style = {'alpha' : 0.25 }
-    IT_style = {'ls' : '', 'marker' : 'o', 'markerfacecolor' : 'none'}
-    plt.figure()
-
-    for i, Q in enumerate(charge_density_C_cm3):
-
-        # IonTracks uses the number of electrons per ccm rather than charge per ccm
-        elec_per_cm3 = Q/e_charge
-
-        for idx, V in enumerate(voltages_LS):
-            f_result_Boag[:, idx] = Boag_Continuous(Q, d_cm, V)
-
-        for idx, V in enumerate(voltages_V):
-            f_result_IonTracks[idx] = IonTracks_continuous(V, d_cm, elec_per_cm3)
-
-        # plot results
-        Boag_style['color'] = clist[i]
-        Boag_style['label'] = r"$Q$={:.2e} C/cm3/s, Boag theory".format(Q)
-        IT_style['color'] = clist[i]
-        IT_style['label'] = r"$Q$={:.2e} C/cm3/s, IonTracks".format(Q)
-
-        plt.plot(1./voltages_V, f_result_IonTracks, **IT_style)
-
-        # plot Boag with 1 std uncertainties; Boag should be avoided below f = 0.7
-        Boag_low = f_result_Boag[1,:]
-        Boag_high = f_result_Boag[2,:]
-        Boag_mean = f_result_Boag[0,:]
-
-        plt.fill_between(1./voltages_LS, Boag_high, Boag_low, **Boag_style)
-        plt.plot(1./voltages_LS, Boag_mean, c=clist[i], ls = '--')
-
-    plt.title("Plane-parallel chamber with $d = {:0.2g}$ cm air gap".format(d_cm))
-    plt.xlabel("Inverse voltage [1/V]")
-    plt.ylabel("Collection efficiency")
-    plt.legend(loc = 'best', frameon=False)
-    plt.savefig("collection_efficiencies.pdf", bbox_inches='tight')
+    ax.set_title("Continuous beam: $d = {:0.2g}$ cm air gap".format(d_cm))
+    ax.set_xlabel("Voltage [V]")
+    ax.set_ylabel("Recombination correction factor ($k_s$)")
+    ax.set_xscale("log")
+    ax.legend(loc='best', frameon=False)
+    fig.savefig("fig_example_continuous.pdf")
+        
