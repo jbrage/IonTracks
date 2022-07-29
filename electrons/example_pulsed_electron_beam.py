@@ -1,11 +1,8 @@
-import sys
 import numpy as np
-from recombination_cythonized import pulsed_beam_PDEsolver
+from electrons.cython.pulsed_e_beam  import pulsed_beam_PDEsolver
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 from Boag_theory import Boag_pulsed
-
-sys.path.append('./cython')
 
 
 def IonTracks_pulsed(voltage_V, d_cm, elec_per_cm3):

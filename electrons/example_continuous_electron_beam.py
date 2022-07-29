@@ -1,7 +1,5 @@
-import sys, os
 import numpy as np
-sys.path.append('./cython')
-from recombination_cythonized import continuous_beam_PDEsolver
+from electrons.cython.continuous_e_beam import continuous_beam_PDEsolver
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 from Boag_theory import Boag_Continuous

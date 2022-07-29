@@ -44,6 +44,8 @@ CYTHONIZE = bool(int(os.getenv("CYTHONIZE", 0))) and cythonize is not None
 extensions = [
     Extension("hadrons.cython_files.continuous_beam", ["hadrons/cython_files/continuous_beam.pyx"]),
     Extension("hadrons.cython_files.initial_recombination", ["hadrons/cython_files/initial_recombination.pyx"]),
+    Extension("electrons.cython.continuous_e_beam", ["electrons/cython/continuous_e_beam.pyx"]),
+    Extension("electrons.cython.pulsed_e_beam", ["electrons/cython/pulsed_e_beam.pyx"]),
 ]
 
 if CYTHONIZE:
