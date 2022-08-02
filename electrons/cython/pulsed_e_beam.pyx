@@ -13,7 +13,7 @@ cimport cython
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
 @cython.cdivision(True) # turn off checks for zero division
 
-def pulsed_beam_PDEsolver(list parameter_list):
+def pulsed_beam_PDEsolver(dict parameter_dic):
     '''
     Define the parameters from Kanai (1998)
     '''
@@ -22,11 +22,11 @@ def pulsed_beam_PDEsolver(list parameter_list):
     cdef double ion_diff = 3.7e-2       # cm^2/s, averaged for positive and negative ions
     cdef double alpha = 1.60e-6         # cm^3/s, recombination constant
 
-    cdef double electron_density_per_cm3   = parameter_list[0] # fluence-rate [/cm^2/s]
-    cdef double voltage_V       = parameter_list[1] # [V/cm] magnitude of the electric field
-    cdef double d_cm            = parameter_list[2] # [cm] # electrode gap
-    cdef bint SHOW_PLOT         = parameter_list[3] # show frames of the simulation
-    cdef bint PRINT             = parameter_list[4] # print parameters?
+    cdef double electron_density_per_cm3   = parameter_dic["elec_per_cm3"] # fluence-rate [/cm^2/s]
+    cdef double voltage_V       	= parameter_dic["voltage_V"] # [V/cm] magnitude of the electric field
+    cdef double d_cm            	= parameter_dic["d_cm"] # [cm] # electrode gap
+    cdef bint show_plot         	= parameter_dic["show_plot"] # show frames of the simulation
+    cdef bint print_parameters  	= parameter_dic["print_parameters"] # print parameters?
 
 
     '''
@@ -98,7 +98,7 @@ def pulsed_beam_PDEsolver(list parameter_list):
     '''
     cdef double MINVAL = 0.
     cdef double MAXVAL = 0.
-    if SHOW_PLOT:
+    if show_plot:
         import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
 
@@ -123,7 +123,7 @@ def pulsed_beam_PDEsolver(list parameter_list):
         cb = fig.colorbar(figure3, cax=cbar_ax1, orientation='horizontal', label="Charge carrier density [per cm^3]")
         cb.set_clim(vmin=MINVAL, vmax=MAXVAL)
 
-    if PRINT:
+    if print_parameters:
         print("Simul. radius = %0.5g cm" % (inner_radius*unit_length_cm))
         print("Simul. area   = %0.5g cm^2" % ((inner_radius*unit_length_cm)**2*pi))
         print("Electric field = %s V/cm" % Efield_V_cm)
@@ -171,7 +171,7 @@ def pulsed_beam_PDEsolver(list parameter_list):
     for time_step in range(computation_time_steps):
 
         # update the figure
-        if SHOW_PLOT:
+        if show_plot:
             update_figure_step=int(computation_time_steps/no_figure_updates)
             if time_step % update_figure_step == 0:
                 print("Updated figure; %s" % time_step)
@@ -225,5 +225,6 @@ def pulsed_beam_PDEsolver(list parameter_list):
                     positive_array[i,j,k] = positive_array_temp[i,j,k]
                     negative_array[i,j,k] = negative_array_temp[i,j,k]
 
+    # return the collection efficiency
     f = (no_initialised_charge_carriers - no_recombined_charge_carriers)/no_initialised_charge_carriers
     return f

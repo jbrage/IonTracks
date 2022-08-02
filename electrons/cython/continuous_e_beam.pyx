@@ -3,6 +3,7 @@ import numpy as np
 import numpy.random as rnd
 from copy import deepcopy
 cimport numpy as np
+import pandas as pd
 
 from libc.math cimport exp, sqrt, M_PI as pi, log, cos, sin
 DTYPE = np.double
@@ -14,7 +15,7 @@ cimport cython
 @cython.cdivision(True) # turn off checks for zero division
 
 
-def continuous_beam_PDEsolver(list parameter_list):
+def continuous_beam_PDEsolver(dict parameter_dic):
     '''
     Define the parameters from Kanai (1998)
     '''
@@ -23,11 +24,11 @@ def continuous_beam_PDEsolver(list parameter_list):
     cdef double ion_diff = 3.7e-2       # cm^2/s, averaged for positive and negative ions
     cdef double alpha = 1.60e-6         # cm^3/s, recombination constant
 
-    cdef double electron_density_per_cm3   = parameter_list[0] # fluence-rate [/cm^2/s]
-    cdef double voltage_V       = parameter_list[1] # [V/cm] magnitude of the electric field
-    cdef double d_cm            = parameter_list[2] # [cm] # electrode gap
-    cdef bint SHOW_PLOT         = parameter_list[3] # show frames of the simulation
-    cdef bint PRINT             = parameter_list[4] # print parameters?
+    cdef double electron_density_per_cm3   = parameter_dic["elec_per_cm3"] # fluence-rate [/cm^2/s]
+    cdef double voltage_V       = parameter_dic["voltage_V"] # [V/cm] magnitude of the electric field
+    cdef double d_cm            = parameter_dic["d_cm"] # [cm] # electrode gap
+    cdef bint show_plot         = parameter_dic["show_plot"] # show frames of the simulation
+    cdef bint print_parameters  = parameter_dic["print_parameters"] # print parameters?
 
 
     '''
@@ -98,7 +99,7 @@ def continuous_beam_PDEsolver(list parameter_list):
     '''
     cdef double MINVAL = 0.
     cdef double MAXVAL = 0.
-    if SHOW_PLOT:
+    if show_plot:
         import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
 
@@ -123,7 +124,7 @@ def continuous_beam_PDEsolver(list parameter_list):
         cb = fig.colorbar(figure3, cax=cbar_ax1, orientation='horizontal', label="Charge carrier density [per cm^3]")
         cb.set_clim(vmin=MINVAL, vmax=MAXVAL)
 
-    if PRINT:
+    if print_parameters:
         print("Simul. radius = %0.5g cm" % (inner_radius*unit_length_cm))
         print("Simul. area   = %0.5g cm^2" % ((inner_radius*unit_length_cm)**2*pi))
         print("Electric field = %s V/cm" % Efield_V_cm)
@@ -178,7 +179,7 @@ def continuous_beam_PDEsolver(list parameter_list):
                     step_initialized += electron_density_per_cm3_s
 
         # update the figure
-        if SHOW_PLOT:
+        if show_plot:
             update_figure_step=int(computation_time_steps/no_figure_updates)
             if time_step % update_figure_step == 0:
                 print("Updated figure; %s" % time_step)
@@ -235,5 +236,26 @@ def continuous_beam_PDEsolver(list parameter_list):
                     positive_array[i,j,k] = positive_array_temp[i,j,k]
                     negative_array[i,j,k] = negative_array_temp[i,j,k]
 
-    f = (no_initialised_charge_carriers - no_recombined_charge_carriers)/no_initialised_charge_carriers
-    return f, f_steps_list, dt, separation_time_steps
+       # save the relevant parameters
+    parameter_dic["average_f"] = (no_initialised_charge_carriers - no_recombined_charge_carriers)/no_initialised_charge_carriers
+    parameter_dic["dt_s"] = dt
+    parameter_dic["simulation_time_s"] = simulation_time_s
+    
+    parameter_dic["n_steps"] = computation_time_steps    
+    parameter_dic["n_separation_steps"] = separation_time_steps
+    parameter_dic["separation_time_s"] = separation_time_steps * dt    
+    parameter_dic["convergence_time_s"] = 2*separation_time_steps * dt        
+    
+    # calculate the collection efficiency after the collection has stabilised
+    parameter_dic["f"] = np.mean(f_steps_list[2*separation_time_steps+1:])
+    parameter_dic["ks"] = 1 / parameter_dic["f"] 
+
+    # save the charge collection as a function of time
+    charge_collection_df = pd.DataFrame()
+    charge_collection_df["f"] = f_steps_list
+    charge_collection_df["ks"] = 1/f_steps_list
+    charge_collection_df["time_s"] = np.arange(0, len(f_steps_list)*dt, dt)
+    charge_collection_df["time_us"] = charge_collection_df["time_s"] *1e6        
+
+
+    return pd.DataFrame([parameter_dic]), charge_collection_df
