@@ -6,7 +6,7 @@ import itertools
 TEST_DATA_DICT = dict(
     E_MeV_u=[10, 250],
     voltage_V=[50, 300],
-    electrode_gap_cm=[0.2],
+    electrode_gap_cm=[0.01],
     # currently jaffe theory crashes for oxygen and helium
     particle=["proton", "carbon"],
     grid_size_um=[5, 10],
