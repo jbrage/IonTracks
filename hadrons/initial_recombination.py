@@ -1,7 +1,6 @@
 import numpy as np
 import numpy.random as rnd
 import time
-from copy import deepcopy
 from math import exp, sqrt, pi, log, cos, sin
 
 def Geiss_r_max(E_MeV_u, rho_material):
