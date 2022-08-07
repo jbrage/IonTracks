@@ -33,7 +33,7 @@ def Geiss_RRD_cm(r_cm, c, a0_cm, r_max_cm):
       return 0  
 
 
-def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic):
+def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic, debug=False):
 
     cdef double LET_keV_um      = parameter_dic["LET_keV_um"] # linear energy transfer [keV/um]
     cdef double voltage_V       = parameter_dic["voltage_V"] # [V/cm] magnitude of the electric field
@@ -187,7 +187,7 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic):
     for k in range(no_z_electrode, no_z + no_z_electrode):
         for i in range(no_x):
             for j in range(no_x):
-                print(f'\rGaussian distribution loop: k - {k+1: >3}/{no_z + no_z_electrode}, i - {i+1: >3}/{no_x}, j - {j+1: >3}/{no_x} Time: {time.time()-start_time: .2f}', end='')
+                if debug: print(f'\rGaussian distribution loop: k - {k+1: >3}/{no_z + no_z_electrode}, i - {i+1: >3}/{no_x}, j - {j+1: >3}/{no_x} Time: {time.time()-start_time: .2f}', end='')
                 distance_from_center_cm = sqrt((i - mid_xy_array) ** 2 + (j - mid_xy_array) ** 2) * unit_length_cm
                 # ion_density = Gaussian_factor * exp(-distance_from_center ** 2 / track_radius_cm ** 2)
                 # ion_density = Geiss_RRD_cm(distance_from_center, c, a0_cm, r_max_cm)
@@ -203,7 +203,7 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic):
     # start the calculation
     calculation_time = time.time()
     for time_step in range(computation_time_steps):
-        print(f'Calculation loop iteration {time_step+1}/{computation_time_steps}')
+        if debug: print(f'Calculation loop iteration {time_step+1}/{computation_time_steps}')
         # update the figure?
         if SHOW_PLOT:
             update_figure_step=int(computation_time_steps/no_figure_updates)
@@ -219,7 +219,7 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic):
         for i in range(1,no_x-1):
             for j in range(1,no_x-1):
                 for k in range(1,no_z_with_buffer-1):
-                    print(f'\rDensities calculation loop: i - {i+1: >3}/{no_x-1}, j - {j+1: >3}/{no_x-1}, k - {k+1: >3}/{no_z_with_buffer-1} Time: {time.time()-start_time: .2f}', end='')
+                    if debug: print(f'\rDensities calculation loop: i - {i+1: >3}/{no_x-1}, j - {j+1: >3}/{no_x-1}, k - {k+1: >3}/{no_z_with_buffer-1} Time: {time.time()-start_time: .2f}', end='')
                     # using the Lax-Wendroff scheme
                     positive_temp_entry = (sz+cz*(cz+1.)/2.)*positive_array[i,j,k-1]
                     positive_temp_entry += (sz+cz*(cz-1.)/2.)*positive_array[i,j,k+1]
@@ -250,20 +250,20 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic):
                     positive_array_temp[i,j,k] = positive_temp_entry - recomb_temp
                     negative_array_temp[i,j,k] = negative_temp_entry - recomb_temp
                     no_recombined_charge_carriers += recomb_temp
-        print('')
+        if debug: print('')
 
         # update the positive and negative arrays
         start_time = time.time()
         for i in range(1,no_x-1):
             for j in range(1,no_x-1):
                 for k in range(1,no_z_with_buffer-1):
-                    print(f'\rUpdate array loop:          i - {i+1: >3}/{no_x-1}, j - {j+1: >3}/{no_x-1}, k - {k+1: >3}/{no_z_with_buffer-1} Time: {time.time()-start_time: .2f}', end='')
+                    if debug: print(f'\rUpdate array loop:          i - {i+1: >3}/{no_x-1}, j - {j+1: >3}/{no_x-1}, k - {k+1: >3}/{no_z_with_buffer-1} Time: {time.time()-start_time: .2f}', end='')
                     positive_array[i,j,k] = positive_array_temp[i,j,k]
                     negative_array[i,j,k] = negative_array_temp[i,j,k]            
-        print('')
+        if debug: print('')
 
     f = (no_initialised_charge_carriers - no_recombined_charge_carriers)/no_initialised_charge_carriers
 
-    print('Calculation loop combined time: ', time.time()-calculation_time)
+    if debug: print('Calculation loop combined time: ', time.time()-calculation_time)
     return 1./f
     
