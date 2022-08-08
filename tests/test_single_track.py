@@ -23,7 +23,6 @@ def get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_siz
         "electrode_gap_cm": electrode_gap_cm,
         "LET_keV_um": float(LET_keV_um),
         "a0_nm": 8.0,
-        "particle": particle,
         "RDD_model": "Gauss",
         "IC_angle_rad": 0,
     },{
@@ -49,7 +48,7 @@ def test_single_track_PDEsolver_cython(E_MeV_u, voltage_V, electrode_gap_cm, par
 
     def row_filter(row):    
         return (
-            row.particle == single_track_PDEsolver_input[0]['particle'] and
+            row.particle == particle and
             np.allclose(row.LET_keV_um, single_track_PDEsolver_input[0]['LET_keV_um']) and
             row.voltage_V == single_track_PDEsolver_input[0]['voltage_V'] and
             row.electrode_gap_cm == single_track_PDEsolver_input[0]['electrode_gap_cm'] and
@@ -80,7 +79,6 @@ def test_single_track_PDEsolver_python(E_MeV_u, voltage_V, electrode_gap_cm, par
             electrode_gap_cm = electrode_gap_cm,
             LET_keV_um = float(LET_keV_um),
             a0_nm = 8.0,
-            particle = particle,
             RDD_model = "Gauss",
             IC_angle_rad = 0,
             unit_length_cm = grid_size_um*1e-4,

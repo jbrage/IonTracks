@@ -37,11 +37,11 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic, debug=Fals
 
     cdef double LET_keV_um      = parameter_dic["LET_keV_um"] # linear energy transfer [keV/um]
     cdef double voltage_V       = parameter_dic["voltage_V"] # [V/cm] magnitude of the electric field
-    cdef double theta_rad       = parameter_dic["IC_angle_rad"] # [rad] angle between electric field and the ion track(s)
+    cdef double IC_angle_rad    = parameter_dic["IC_angle_rad"] # [rad] angle between electric field and the ion track(s)
     cdef double d_cm            = parameter_dic["electrode_gap_cm"] # [cm] # electrode gap
     cdef double E_MeV_u         = parameter_dic["E_MeV_u"] 
     cdef double a0_nm           = parameter_dic["a0_nm"]
-    cdef str RDD_model_name     = parameter_dic["RDD_model"] 
+    cdef str RDD_model          = parameter_dic["RDD_model"] 
     
     cdef double unit_length_cm  = extra_params_dic["unit_length_cm"] 
     cdef double track_radius_cm = extra_params_dic["track_radius_cm"] # Gaussian radius b [cm]
@@ -144,9 +144,9 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic, debug=Fals
         sx = ion_diff*dt/(unit_length_cm**2)
         sy, sz = sx, sx
 
-        cx = ion_mobility*Efield*dt/unit_length_cm*sin(theta_rad)
+        cx = ion_mobility*Efield*dt/unit_length_cm*sin(IC_angle_rad)
         cy = 0
-        cz = ion_mobility*Efield*dt/unit_length_cm*cos(theta_rad)
+        cz = ion_mobility*Efield*dt/unit_length_cm*cos(IC_angle_rad)
 
         # check von Neumann's criterion
         von_neumann_expression = (2*(sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1 and cx**2*cy**2*cz**2 <= 8*sx*sy*sz)
@@ -169,15 +169,15 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic, debug=Fals
 
     # define the radial dose model to be used
     
-    if RDD_model_name == "Gauss":
+    if RDD_model == "Gauss":
         def RDD_function(r_cm):
             return Gaussian_factor * exp(-r_cm ** 2 / track_radius_cm ** 2)
 
-    elif RDD_model_name == "Geiss":
+    elif RDD_model == "Geiss":
         def RDD_function(r_cm):
             return Geiss_RRD_cm(r_cm, c, a0_cm, r_max_cm)
     else:
-        print("RDD model {} undefined.".format(RDD_model_name))
+        print("RDD model {} undefined.".format(RDD_model))
         return 0
     
 

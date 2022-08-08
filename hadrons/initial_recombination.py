@@ -21,11 +21,11 @@ def Geiss_RRD_cm(r_cm, c, a0_cm, r_max_cm):
 
 def single_track_PDEsolver(LET_keV_um: float,
                            voltage_V: float,
-                           theta_rad: float,
-                           d_cm: float,
+                           IC_angle_rad: float,
+                           electrode_gap_cm: float,
                            E_MeV_u: float,
                            a0_nm: float,
-                           RDD_model_name: str,
+                           RDD_model: str,
                            unit_length_cm: float,
                            track_radius_cm: float,
                            debug=False):
@@ -61,7 +61,7 @@ def single_track_PDEsolver(LET_keV_um: float,
     # grid dimension parameters
     no_x = int(track_radius_cm*n_track_radii/unit_length_cm)
     # print(track_radius_cm*n_track_radii)
-    no_z = int(d_cm/unit_length_cm) #number of elements in the z direction
+    no_z = int(electrode_gap_cm/unit_length_cm) #number of elements in the z direction
     no_z_with_buffer = 2*no_z_electrode + no_z
     # find the middle of the arrays
     mid_xy_array = int(no_x/2.)
@@ -85,8 +85,7 @@ def single_track_PDEsolver(LET_keV_um: float,
 
     dt = 1.
     von_neumann_expression = False
-    sx, sy, sz, cx, cy, cz
-    Efield = voltage_V/d_cm
+    Efield = voltage_V/electrode_gap_cm
 
     # find a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
     # decreases and eventually damps out
@@ -96,15 +95,15 @@ def single_track_PDEsolver(LET_keV_um: float,
         sx = ion_diff*dt/(unit_length_cm**2)
         sy, sz = sx, sx
 
-        cx = ion_mobility*Efield*dt/unit_length_cm*sin(theta_rad)
+        cx = ion_mobility*Efield*dt/unit_length_cm*sin(IC_angle_rad)
         cy = 0
-        cz = ion_mobility*Efield*dt/unit_length_cm*cos(theta_rad)
+        cz = ion_mobility*Efield*dt/unit_length_cm*cos(IC_angle_rad)
 
         # check von Neumann's criterion
         von_neumann_expression = (2*(sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1 and cx**2*cy**2*cz**2 <= 8*sx*sy*sz)
 
     # calculate the number of step required to drag the two charge carrier distributions apart
-    separation_time_steps = int(d_cm/(2.*ion_mobility*Efield*dt))
+    separation_time_steps = int(electrode_gap_cm/(2.*ion_mobility*Efield*dt))
     computation_time_steps = separation_time_steps*2
 
     if debug:
@@ -116,20 +115,22 @@ def single_track_PDEsolver(LET_keV_um: float,
         print("Number of pixels = %d (x = y directions)" % no_x)
         print("Number of pixels = %d (z direction)" % no_z)
 
-    distance_from_center, ion_density, positive_temp_entry, negative_temp_entry, recomb_temp = 0.0
-    i, j, k, time_step
+    ion_density = 0.0
+    positive_temp_entry = 0.0
+    negative_temp_entry = 0.0
+    recomb_temp = 0.0
 
     # define the radial dose model to be used
     
-    if RDD_model_name == "Gauss":
+    if RDD_model == "Gauss":
         def RDD_function(r_cm):
             return Gaussian_factor * exp(-r_cm ** 2 / track_radius_cm ** 2)
 
-    elif RDD_model_name == "Geiss":
+    elif RDD_model == "Geiss":
         def RDD_function(r_cm):
             return Geiss_RRD_cm(r_cm, c, a0_cm, r_max_cm)
     else:
-        print("RDD model {} undefined.".format(RDD_model_name))
+        print("RDD model {} undefined.".format(RDD_model))
         return 0
     
 
