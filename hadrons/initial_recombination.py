@@ -80,7 +80,6 @@ def single_track_PDEsolver(LET_keV_um: float,
     no_initialised_charge_carriers = 0.0
 
     # for the colorbars
-    MINVAL = 0.
     MAXVAL = Gaussian_factor
 
     dt = 1.
@@ -115,13 +114,7 @@ def single_track_PDEsolver(LET_keV_um: float,
         print("Number of pixels = %d (x = y directions)" % no_x)
         print("Number of pixels = %d (z direction)" % no_z)
 
-    ion_density = 0.0
-    positive_temp_entry = 0.0
-    negative_temp_entry = 0.0
-    recomb_temp = 0.0
-
     # define the radial dose model to be used
-    
     if RDD_model == "Gauss":
         def RDD_function(r_cm):
             return Gaussian_factor * exp(-r_cm ** 2 / track_radius_cm ** 2)
@@ -132,8 +125,6 @@ def single_track_PDEsolver(LET_keV_um: float,
     else:
         print("RDD model {} undefined.".format(RDD_model))
         return 0
-    
-
 
     # initialise the Gaussian distribution in the array
     start_time = time.time()
