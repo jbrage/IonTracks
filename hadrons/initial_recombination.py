@@ -28,7 +28,7 @@ def single_track_PDEsolver(LET_keV_um: float,
                            RDD_model: str,
                            unit_length_cm: float,
                            track_radius_cm: float,
-                           debug=False):
+                           debug: bool = False):
 
     LET_eV_cm  = LET_keV_um*1e7
 
@@ -79,9 +79,6 @@ def single_track_PDEsolver(LET_keV_um: float,
     no_recombined_charge_carriers = 0.0
     no_initialised_charge_carriers = 0.0
 
-    # for the colorbars
-    MAXVAL = Gaussian_factor
-
     dt = 1.
     von_neumann_expression = False
     Efield = voltage_V/electrode_gap_cm
@@ -130,19 +127,13 @@ def single_track_PDEsolver(LET_keV_um: float,
     start_time = time.time()
     for i in range(no_x):
         for j in range(no_x):
+            if debug: print(f'\rGaussian distribution loop: i - {i+1: >3}/{no_x}, j - {j+1: >3}/{no_x} Time: {time.time()-start_time: .2f}', end='')
             distance_from_center_cm = sqrt((i - mid_xy_array) ** 2 + (j - mid_xy_array) ** 2) * unit_length_cm
             ion_density = RDD_function(distance_from_center_cm)
-            for k in range(no_z_electrode, no_z + no_z_electrode):
-                if debug: print(f'\rGaussian distribution loop: k - {k+1: >3}/{no_z + no_z_electrode}, i - {i+1: >3}/{no_x}, j - {j+1: >3}/{no_x} Time: {time.time()-start_time: .2f}', end='')
-                # ion_density = Gaussian_factor * exp(-distance_from_center ** 2 / track_radius_cm ** 2)
-                # ion_density = Geiss_RRD_cm(distance_from_center, c, a0_cm, r_max_cm)
-                no_initialised_charge_carriers += ion_density
-                positive_array[i, j, k] += ion_density
-                negative_array[i, j, k] += ion_density
-
-                if positive_array[i, j, k] > MAXVAL:
-                   MAXVAL = positive_array[i, j, k]
-    print('')
+            no_initialised_charge_carriers += no_z*ion_density
+            positive_array[i, j, no_z_electrode:(no_z_electrode+no_z)] += ion_density
+            negative_array[i, j, no_z_electrode:(no_z_electrode+no_z)] += ion_density
+    if debug: print('')
 
     # start the calculation
     calculation_time = time.time()

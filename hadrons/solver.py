@@ -8,7 +8,7 @@ class SolverType(Enum):
 
 def solvePDE(input, type: SolverType):
     if type == SolverType.CYTHON:
-        return cython_single_track_PDEsolver(*input)
+        return cython_single_track_PDEsolver(**input)
     elif type == SolverType.PYTHON:
         return python_single_track_PDEsolver(**input)
     else:
