@@ -41,7 +41,7 @@ def single_track_PDEsolver(LET_keV_um: float,
     no_figure_updates = 5
     
     
-    n_track_radii = 6; # scaling factor to determine the grid width
+    n_track_radii = 6 # scaling factor to determine the grid width
     #unit_length_cm = 6e-4   # [cm], grid resolution
     
     no_z_electrode = 4 #length of the electrode-buffer to ensure no ions drift through the array in one time step
