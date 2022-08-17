@@ -10,6 +10,7 @@ from tests.ks_initial.testing_parameters import TEST_DATA_DICT
 from hadrons.cython_files.initial_recombination import single_track_PDEsolver as cython_single_track_PDEsolver
 from hadrons.initial_recombination import single_track_PDEsolver as python_single_track_PDEsolver
 from hadrons.functions import E_MeV_u_to_LET_keV_um, calc_b_cm
+from hadrons.solver import SolverType, solvePDE
 
 
 def get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um):
@@ -39,7 +40,7 @@ def get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_siz
 @pytest.mark.parametrize("grid_size_um", TEST_DATA_DICT["grid_size_um"])
 def test_single_track_PDEsolver_cython(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um, expected_result):
     single_track_PDEsolver_input = get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um)
-    calculated_result = cython_single_track_PDEsolver(*single_track_PDEsolver_input)
+    calculated_result = solvePDE(single_track_PDEsolver_input, SolverType.CYTHON)
 
     assert calculated_result is not None
     assert isinstance(calculated_result, float)
@@ -73,7 +74,7 @@ def test_single_track_PDEsolver_python(E_MeV_u, voltage_V, electrode_gap_cm, par
     LET_keV_um = E_MeV_u_to_LET_keV_um(E_MeV_u, particle)
     track_radius_cm = calc_b_cm(LET_keV_um)
 
-    calculated_result = python_single_track_PDEsolver(
+    calculated_result = solvePDE(dict(
             E_MeV_u = E_MeV_u,
             voltage_V = voltage_V,
             electrode_gap_cm = electrode_gap_cm,
@@ -83,7 +84,7 @@ def test_single_track_PDEsolver_python(E_MeV_u, voltage_V, electrode_gap_cm, par
             IC_angle_rad = 0,
             unit_length_cm = grid_size_um*1e-4,
             track_radius_cm = track_radius_cm,
-        )
+        ), SolverType.PYTHON)
 
     assert calculated_result is not None
     assert isinstance(calculated_result, float)
