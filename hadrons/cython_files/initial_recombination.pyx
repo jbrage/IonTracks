@@ -33,20 +33,17 @@ def Geiss_RRD_cm(r_cm, c, a0_cm, r_max_cm):
       return 0  
 
 
-def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic, debug=False):
-
-    cdef double LET_keV_um      = parameter_dic["LET_keV_um"] # linear energy transfer [keV/um]
-    cdef double voltage_V       = parameter_dic["voltage_V"] # [V/cm] magnitude of the electric field
-    cdef double theta_rad       = parameter_dic["IC_angle_rad"] # [rad] angle between electric field and the ion track(s)
-    cdef double d_cm            = parameter_dic["electrode_gap_cm"] # [cm] # electrode gap
-    cdef double E_MeV_u         = parameter_dic["E_MeV_u"] 
-    cdef double a0_nm           = parameter_dic["a0_nm"]
-    cdef str RDD_model_name     = parameter_dic["RDD_model"] 
-    
-    cdef double unit_length_cm  = extra_params_dic["unit_length_cm"] 
-    cdef double track_radius_cm = extra_params_dic["track_radius_cm"] # Gaussian radius b [cm]
-    cdef bint SHOW_PLOT         = extra_params_dic["SHOW_PLOT"] # show frames of the simulation
-    cdef bint PRINT             = extra_params_dic["PRINT_parameters"] # print parameters?
+def single_track_PDEsolver(double LET_keV_um,
+                           double voltage_V,
+                           double IC_angle_rad,
+                           double electrode_gap_cm,
+                           double E_MeV_u,
+                           double a0_nm,
+                           str RDD_model,
+                           double unit_length_cm,
+                           double track_radius_cm,
+                           bint SHOW_PLOT=False,
+                           bint debug=False):
 
     cdef double LET_eV_cm = LET_keV_um*1e7
 
@@ -80,7 +77,7 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic, debug=Fals
     # grid dimension parameters
     cdef int no_x = int(track_radius_cm*n_track_radii/unit_length_cm)
     # print(track_radius_cm*n_track_radii)
-    cdef int no_z = int(d_cm/unit_length_cm) #number of elements in the z direction
+    cdef int no_z = int(electrode_gap_cm/unit_length_cm) #number of elements in the z direction
     cdef int no_z_with_buffer = 2*no_z_electrode + no_z
     # find the middle of the arrays
     cdef int mid_xy_array = int(no_x/2.)
@@ -134,7 +131,7 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic, debug=Fals
     cdef double dt = 1.
     cdef bint von_neumann_expression = False
     cdef double sx, sy, sz, cx, cy, cz
-    cdef double Efield = voltage_V/d_cm
+    cdef double Efield = voltage_V/electrode_gap_cm
 
     # find a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
     # decreases and eventually damps out
@@ -144,40 +141,31 @@ def single_track_PDEsolver(dict parameter_dic, dict extra_params_dic, debug=Fals
         sx = ion_diff*dt/(unit_length_cm**2)
         sy, sz = sx, sx
 
-        cx = ion_mobility*Efield*dt/unit_length_cm*sin(theta_rad)
+        cx = ion_mobility*Efield*dt/unit_length_cm*sin(IC_angle_rad)
         cy = 0
-        cz = ion_mobility*Efield*dt/unit_length_cm*cos(theta_rad)
+        cz = ion_mobility*Efield*dt/unit_length_cm*cos(IC_angle_rad)
 
         # check von Neumann's criterion
         von_neumann_expression = (2*(sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1 and cx**2*cy**2*cz**2 <= 8*sx*sy*sz)
 
     # calculate the number of step required to drag the two charge carrier distributions apart
-    cdef int separation_time_steps = int(d_cm/(2.*ion_mobility*Efield*dt))
+    cdef int separation_time_steps = int(electrode_gap_cm/(2.*ion_mobility*Efield*dt))
     cdef int computation_time_steps = separation_time_steps*2
-
-    if PRINT:
-        print("Electric field = %s V/cm" % Efield)
-        print("Separation time = %3.2E s" % (separation_time_steps*dt))
-        print("Time steps      = %3.2E" % computation_time_steps)
-        print("Time step dt    = %3.2E s" % dt)
-        print("Number of voxels = %3.2E" % (no_x**2 * no_z_with_buffer))
-        print("Number of pixels = %d (x = y directions)" % no_x)
-        print("Number of pixels = %d (z direction)" % no_z)
 
     cdef double distance_from_center, ion_density, positive_temp_entry, negative_temp_entry, recomb_temp = 0.0
     cdef int i, j, k, time_step
 
     # define the radial dose model to be used
     
-    if RDD_model_name == "Gauss":
+    if RDD_model == "Gauss":
         def RDD_function(r_cm):
             return Gaussian_factor * exp(-r_cm ** 2 / track_radius_cm ** 2)
 
-    elif RDD_model_name == "Geiss":
+    elif RDD_model == "Geiss":
         def RDD_function(r_cm):
             return Geiss_RRD_cm(r_cm, c, a0_cm, r_max_cm)
     else:
-        print("RDD model {} undefined.".format(RDD_model_name))
+        print("RDD model {} undefined.".format(RDD_model))
         return 0
     
 

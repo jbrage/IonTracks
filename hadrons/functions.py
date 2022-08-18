@@ -193,10 +193,20 @@ def ks_initial_IonTracks(E_MeV_u=200,
         "unit_length_cm": grid_size_um*1e-4,
         "track_radius_cm": track_radius_cm,
         "SHOW_PLOT": SHOW_PLOT,
-        "PRINT_parameters": PRINT_parameters,
+        # "PRINT_parameters": PRINT_parameters,
     }
 
-    ks = single_track_PDEsolver(result_dic, extra_params_dic)
+    ks = single_track_PDEsolver(
+        LET_keV_um,
+        voltage_V,
+        theta_rad,
+        electrode_gap_cm,
+        E_MeV_u,
+        a0_nm,
+        RDD_model,
+        grid_size_um*1e-4,
+        track_radius_cm,
+    )
     result_dic["ks"] = ks
     return pd.DataFrame([result_dic])
 
