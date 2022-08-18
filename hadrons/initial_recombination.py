@@ -193,8 +193,8 @@ def single_track_PDEsolver(LET_keV_um: float,
         # update the positive and negative arrays
         start_time = time.time()
 
-        positive_array[1:(no_x-1),1:(no_x-1),1:(no_z_with_buffer-1)] = positive_array_temp[1:(no_x-1),1:(no_x-1),1:(no_z_with_buffer-1)]
-        negative_array[1:(no_x-1),1:(no_x-1),1:(no_z_with_buffer-1)] = negative_array_temp[1:(no_x-1),1:(no_x-1),1:(no_z_with_buffer-1)]
+        positive_array[1:-1,1:-1,1:-1] = positive_array_temp[1:-1,1:-1,1:-1]
+        negative_array[1:-1,1:-1,1:-1] = negative_array_temp[1:-1,1:-1,1:-1]
 
     f = (no_initialised_charge_carriers - no_recombined_charge_carriers)/no_initialised_charge_carriers
 
