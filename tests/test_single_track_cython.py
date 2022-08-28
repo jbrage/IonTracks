@@ -5,27 +5,11 @@ test_single_track_cython.py
 import pytest
 import numpy as np
 from tests.ks_initial.testing_parameters import TEST_DATA_DICT
-from hadrons.functions import E_MeV_u_to_LET_keV_um, calc_b_cm
 from hadrons.solver import SolverType, solvePDE
+from utils import get_PDEsolver_input
 
-
-def get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um):
-    
-    LET_keV_um = E_MeV_u_to_LET_keV_um(E_MeV_u, particle)
-    track_radius_cm = calc_b_cm(LET_keV_um)
-    
-    return (dict(
-        LET_keV_um = float(LET_keV_um),
-        voltage_V = voltage_V,
-        IC_angle_rad = 0,
-        electrode_gap_cm = electrode_gap_cm,
-        E_MeV_u = E_MeV_u,
-        a0_nm = 8.0,
-        RDD_model = "Gauss",
-        unit_length_cm = grid_size_um*1e-4,
-        track_radius_cm = track_radius_cm,
-    ))
-
+@pytest.mark.single_track
+@pytest.mark.cython
 @pytest.mark.parametrize("E_MeV_u", TEST_DATA_DICT["E_MeV_u"])
 @pytest.mark.parametrize("voltage_V", TEST_DATA_DICT["voltage_V"])
 @pytest.mark.parametrize("electrode_gap_cm", TEST_DATA_DICT["electrode_gap_cm"])

@@ -1,5 +1,4 @@
 import numpy as np
-import numpy.random as rnd
 import time
 from math import exp, sqrt, pi, log, cos, sin
 from numba import njit
@@ -51,6 +50,72 @@ def initialize_Gaussian_distriution_Geiss(no_x, no_z_with_buffer, mid_xy_array, 
             negative_array[i, j, no_z_electrode:(no_z_electrode+no_z)] += ion_density
 
     return no_initialised_charge_carriers, positive_array, negative_array
+
+@njit
+def calculate_densities(sz, cz, sy, cy, sx, cx, no_x, no_z_with_buffer, positive_array, negative_array, positive_array_temp, negative_array_temp, alpha, dt, no_recombined_charge_carriers):
+    
+
+    return positive_array, negative_array, no_recombined_charge_carriers
+
+@njit
+def main_loop(sz, cz, sy, cy, sx, cx, no_x, no_z_with_buffer, positive_array, negative_array, positive_array_temp, negative_array_temp, alpha, dt, no_recombined_charge_carriers, computation_time_steps, no_initialised_charge_carriers):
+    for time_step in range(computation_time_steps):
+
+        # calculate the new densities and store them in temporary arrays
+        #dunno what would be a good name for those coefficients
+        szcz_pos = (sz+cz*(cz+1.)/2.)
+        szcz_neg = (sz+cz*(cz-1.)/2.)
+
+        sycy_pos = (sy+cy*(cy+1.)/2.)
+        sycy_neg = (sy+cy*(cy-1.)/2.)
+
+        sxcx_pos = (sx+cx*(cx+1.)/2.)
+        sxcx_neg = (sx+cx*(cx-1.)/2.)
+
+        for i in range(1,no_x-1):
+            for j in range(1,no_x-1):
+                for k in range(1,no_z_with_buffer-1):
+                    # using the Lax-Wendroff scheme
+                    positive_temp_entry = szcz_pos*positive_array[i,j,k-1]
+                    positive_temp_entry += szcz_neg*positive_array[i,j,k+1]
+
+                    positive_temp_entry += sycy_pos*positive_array[i,j-1,k]
+                    positive_temp_entry += sycy_neg*positive_array[i,j+1,k]
+
+                    positive_temp_entry += sxcx_pos*positive_array[i-1,j,k]
+                    positive_temp_entry += sxcx_neg*positive_array[i+1,j,k]
+
+                    positive_temp_entry += (1.- cx*cx - cy*cy - cz*cz - 2.*(sx+sy+sz))*positive_array[i,j,k]
+
+                    # same for the negative charge carriers
+                    negative_temp_entry = szcz_pos*negative_array[i,j,k+1]
+                    negative_temp_entry += szcz_neg*negative_array[i,j,k-1]
+
+                    negative_temp_entry += sycy_pos*negative_array[i,j+1,k]
+                    negative_temp_entry += sycy_neg*negative_array[i,j-1,k]
+
+                    negative_temp_entry += sxcx_pos*negative_array[i+1,j,k]
+                    negative_temp_entry += sxcx_neg*negative_array[i-1,j,k]
+
+                    negative_temp_entry += (1. - cx*cx - cy*cy - cz*cz - 2.*(sx+sy+sz))*negative_array[i,j,k]
+
+                    # the recombination part
+                    recomb_temp = alpha*positive_array[i,j,k]*negative_array[i,j,k]*dt
+
+                    positive_array_temp[i,j,k] = positive_temp_entry - recomb_temp
+                    negative_array_temp[i,j,k] = negative_temp_entry - recomb_temp
+                    no_recombined_charge_carriers += recomb_temp
+
+        for i in range(1,no_x-1):
+            for j in range(1,no_x-1):
+                for k in range(1,no_z_with_buffer-1):
+                    # update the positive and negative arrays
+                    positive_array[i,j,k] = positive_array_temp[i,j,k]
+                    negative_array[i,j,k] = negative_array_temp[i,j,k]
+
+    f = (no_initialised_charge_carriers - no_recombined_charge_carriers)/no_initialised_charge_carriers
+
+    return f
 
 def single_track_PDEsolver(LET_keV_um: float,
                            voltage_V: float,
@@ -155,67 +220,10 @@ def single_track_PDEsolver(LET_keV_um: float,
     
     # start the calculation
     calculation_time = time.time()
-    for time_step in range(computation_time_steps):
-        if debug: print(f'Calculation loop iteration {time_step+1}/{computation_time_steps}')
-
-        # calculate the new densities and store them in temporary arrays
-        start_time = time.time()
-
-        #dunno what would be a good name for those coefficients
-        szcz_pos = (sz+cz*(cz+1.)/2.)
-        szcz_neg = (sz+cz*(cz-1.)/2.)
-
-        sycy_pos = (sy+cy*(cy+1.)/2.)
-        sycy_neg = (sy+cy*(cy-1.)/2.)
-
-        sxcx_pos = (sx+cx*(cx+1.)/2.)
-        sxcx_neg = (sx+cx*(cx-1.)/2.)
-
-        for i in range(1,no_x-1):
-            for j in range(1,no_x-1):
-                for k in range(1,no_z_with_buffer-1):
-                    if debug: print(f'\rDensities calculation loop: i - {i+1: >3}/{no_x-1}, j - {j+1: >3}/{no_x-1}, k - {k+1: >3}/{no_z_with_buffer-1} Time: {time.time()-start_time: .2f}', end='')
-                    # using the Lax-Wendroff scheme
-
-                    positive_temp_entry = szcz_pos*positive_array[i,j,k-1]
-                    positive_temp_entry += szcz_neg*positive_array[i,j,k+1]
-
-                    positive_temp_entry += sycy_pos*positive_array[i,j-1,k]
-                    positive_temp_entry += sycy_neg*positive_array[i,j+1,k]
-
-                    positive_temp_entry += sxcx_pos*positive_array[i-1,j,k]
-                    positive_temp_entry += sxcx_neg*positive_array[i+1,j,k]
-
-                    positive_temp_entry += (1.- cx*cx - cy*cy - cz*cz - 2.*(sx+sy+sz))*positive_array[i,j,k]
-
-                    # same for the negative charge carriers
-                    negative_temp_entry = szcz_pos*negative_array[i,j,k+1]
-                    negative_temp_entry += szcz_neg*negative_array[i,j,k-1]
-
-                    negative_temp_entry += sycy_pos*negative_array[i,j+1,k]
-                    negative_temp_entry += sycy_neg*negative_array[i,j-1,k]
-
-                    negative_temp_entry += sxcx_pos*negative_array[i+1,j,k]
-                    negative_temp_entry += sxcx_neg*negative_array[i-1,j,k]
-
-                    negative_temp_entry += (1. - cx*cx - cy*cy - cz*cz - 2.*(sx+sy+sz))*negative_array[i,j,k]
-
-                    # the recombination part
-                    recomb_temp = alpha*positive_array[i,j,k]*negative_array[i,j,k]*dt
-
-                    positive_array_temp[i,j,k] = positive_temp_entry - recomb_temp
-                    negative_array_temp[i,j,k] = negative_temp_entry - recomb_temp
-                    no_recombined_charge_carriers += recomb_temp
-        if debug: print('')
-
-        # update the positive and negative arrays
-        start_time = time.time()
-
-        positive_array[1:-1,1:-1,1:-1] = positive_array_temp[1:-1,1:-1,1:-1]
-        negative_array[1:-1,1:-1,1:-1] = negative_array_temp[1:-1,1:-1,1:-1]
-
-    f = (no_initialised_charge_carriers - no_recombined_charge_carriers)/no_initialised_charge_carriers
+    
+    f = main_loop(sz, cz, sy, cy, sx, cx, no_x, no_z_with_buffer, positive_array, negative_array, positive_array_temp, negative_array_temp, alpha, dt, no_recombined_charge_carriers, computation_time_steps, no_initialised_charge_carriers)
 
     if debug: print('Calculation loop combined time: ', time.time()-calculation_time)
+
     return 1./f
     

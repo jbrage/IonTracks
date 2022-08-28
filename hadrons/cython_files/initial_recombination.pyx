@@ -186,7 +186,7 @@ def single_track_PDEsolver(double LET_keV_um,
 
                 if positive_array[i, j, k] > MAXVAL:
                    MAXVAL = positive_array[i, j, k]
-    print('')
+    if debug: print('')
 
     # start the calculation
     calculation_time = time.time()
