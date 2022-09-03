@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 from tests.ks_initial.testing_parameters import TEST_DATA_DICT
 from hadrons.solver import SolverType, solvePDE
-from utils import get_PDEsolver_input
+from tests.utils import get_PDEsolver_input
 
 @pytest.mark.single_track
 @pytest.mark.cython

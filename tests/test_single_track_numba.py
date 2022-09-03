@@ -7,7 +7,7 @@ import numpy as np
 from tests.ks_initial.testing_parameters import TEST_DATA_DICT
 from hadrons.functions import E_MeV_u_to_LET_keV_um, calc_b_cm
 from hadrons.solver import SolverType, solvePDE
-from utils import get_PDEsolver_input
+from tests.utils import get_PDEsolver_input
 
 @pytest.mark.single_track
 @pytest.mark.numba
@@ -19,7 +19,7 @@ from utils import get_PDEsolver_input
 def test_single_track_PDEsolver_numba(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um, expected_result):
     
     single_track_PDEsolver_input = get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um)
-    calculated_result = solvePDE(single_track_PDEsolver_input, SolverType.NUMBA)
+    calculated_result = solvePDE(single_track_PDEsolver_input, SolverType.NUMBA_PARALLEL)
 
     assert calculated_result is not None
     assert isinstance(calculated_result, float)
