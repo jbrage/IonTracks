@@ -194,3 +194,9 @@ testpad.ipynb
 IonTracks.csv
 Jaffe_example.pdf
 Jaffe_theory_and_IonTracks.pdf
+electrons/cython/continuous_e_beam.c
+.gitignore
+electrons/cython/pulsed_e_beam.c
+hadrons/cython_files/continuous_beam.c
+.gitignore
+hadrons/cython_files/initial_recombination.c
