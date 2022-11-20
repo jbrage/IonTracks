@@ -95,15 +95,6 @@ def lax_wendroff_wrapper(no_x, no_z_with_buffer, szcz_pos, szcz_neg, sycy_pos, s
                     positive_array_temp[i, j, k], negative_array_temp[i, j, k], no_recombined_charge_carriers_chunk = lax_wendroff_scheme(i, j, k, szcz_pos, szcz_neg, sycy_pos, sycy_neg, sxcx_pos, sxcx_neg, positive_array, negative_array, cx, cy, cz, sx, sy, sz, alpha, dt)
                     no_recombined_charge_carriers+=no_recombined_charge_carriers_chunk
 
-    # l_x = np.arange(1,no_x-1)
-    # l_z = np.arange(1,no_z_with_buffer-1)
-
-    # for idx in prange(0,(no_x-2)*(no_x-2)*(no_z_with_buffer-2)):
-    #     i = l_x[idx%(no_x-2)]
-    #     j = l_x[(idx//(no_x-2))%(no_x-2)]
-    #     k = l_z[idx//(no_x-2)//(no_x-2)]
-    #     positive_array_temp[i, j, k], negative_array_temp[i, j, k], no_recombined_charge_carriers_chunk = lax_wendroff_scheme(i, j, k, szcz_pos, szcz_neg, sycy_pos, sycy_neg, sxcx_pos, sxcx_neg, positive_array, negative_array, cx, cy, cz, sx, sy, sz, alpha, dt)
-    #     no_recombined_charge_carriers+=no_recombined_charge_carriers_chunk
 
         
     
