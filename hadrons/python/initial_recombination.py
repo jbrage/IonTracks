@@ -34,16 +34,15 @@ class single_track_PDEsolver():
                  track_radius_cm: float,
                  debug: bool = False):
     
-        LET_eV_cm  = LET_keV_um*1e7
-
+        self.LET_eV_cm  = LET_keV_um*1e7
         density_ratio = water_density_g_cm3 / air_density_g_cm3
-        a0_cm = a0_nm * 1e-7 * density_ratio
-        r_max_cm = Geiss_r_max(E_MeV_u, air_density_g_cm3)    
-        c = LET_eV_cm / (pi * W) * (1 / (1 + 2 * log(r_max_cm / a0_cm)))
+        self.a0_cm = a0_nm * 1e-7 * density_ratio
+        self.r_max_cm = Geiss_r_max(E_MeV_u, air_density_g_cm3)    
+        self.c = self.LET_eV_cm / (pi * W) * (1 / (1 + 2 * log(self.r_max_cm / self.a0_cm)))
         
         # density parameters for the Gaussian structure
-        N0 = LET_eV_cm/W     # Linear charge carrier density
-        Gaussian_factor = N0/(pi*track_radius_cm**2)
+        N0 = self.LET_eV_cm/W     # Linear charge carrier density
+        self.Gaussian_factor = N0/(pi*track_radius_cm**2)
 
         # grid dimension parameters
         no_x = int(track_radius_cm*n_track_radii/unit_length_cm)
@@ -51,7 +50,7 @@ class single_track_PDEsolver():
         no_z = int(electrode_gap_cm/unit_length_cm) #number of elements in the z direction
         no_z_with_buffer = 2*no_z_electrode + no_z
         # find the middle of the arrays
-        mid_xy_array = int(no_x/2.)
+        self.mid_xy_array = int(no_x/2.)
 
         # depending on the cluster/computer, the upper limit may be changed
         if (no_x*no_x*no_z) > 1e8:
@@ -94,31 +93,10 @@ class single_track_PDEsolver():
             print("Number of pixels = %d (x = y directions)" % no_x)
             print("Number of pixels = %d (z direction)" % no_z)
 
-        # define the radial dose model to be used
-        if RDD_model == "Gauss":
-            def RDD_function(r_cm):
-                return Gaussian_factor * exp(-r_cm ** 2 / track_radius_cm ** 2)
-
-        elif RDD_model == "Geiss":
-            def RDD_function(r_cm):
-                return Geiss_RRD_cm(r_cm, c, a0_cm, r_max_cm)
-        else:
-            print("RDD model {} undefined.".format(RDD_model))
-            return 0
-
-        # initialise the Gaussian distribution in the array
-        start_time = time.time()
-        for i in range(no_x):
-            for j in range(no_x):
-                if debug: print(f'\rGaussian distribution loop: i - {i+1: >3}/{no_x}, j - {j+1: >3}/{no_x} Time: {time.time()-start_time: .2f}', end='')
-                distance_from_center_cm = sqrt((i - mid_xy_array) ** 2 + (j - mid_xy_array) ** 2) * unit_length_cm
-                ion_density = RDD_function(distance_from_center_cm)
-                no_initialised_charge_carriers += no_z*ion_density
-                positive_array[i, j, no_z_electrode:(no_z_electrode+no_z)] += ion_density
-                negative_array[i, j, no_z_electrode:(no_z_electrode+no_z)] += ion_density
-        if debug: print('')
-
         self.computation_time_steps = computation_time_steps
+        self.track_radius_cm = track_radius_cm
+        self.unit_length_cm = unit_length_cm
+        self.RDD_model = RDD_model
         self.sx = sy
         self.cx = cy
         self.sy = sy
@@ -126,6 +104,7 @@ class single_track_PDEsolver():
         self.sz = sz
         self.cz = cz
         self.no_x = no_x
+        self.no_z = no_z
         self.no_z_with_buffer = no_z_with_buffer
         self.positive_array = positive_array
         self.negative_array = negative_array
@@ -139,6 +118,30 @@ class single_track_PDEsolver():
         negative_array_temp = np.zeros((self.no_x, self.no_x, self.no_z_with_buffer))
         no_recombined_charge_carriers = 0.0
 
+        # define the radial dose model to be used
+        if self.RDD_model == "Gauss":
+            def RDD_function(r_cm):
+                return self.Gaussian_factor * exp(-r_cm ** 2 / self.track_radius_cm ** 2)
+
+        elif self.RDD_model == "Geiss":
+            def RDD_function(r_cm):
+                return Geiss_RRD_cm(r_cm, self.c, self.a0_cm, self.r_max_cm)
+        else:
+            print("RDD model {} undefined.".format(self.RDD_model))
+            return 0
+
+        # initialise the Gaussian distribution in the array
+        start_time = time.time()
+        for i in range(self.no_x):
+            for j in range(self.no_x):
+                if self.debug: print(f'\rGaussian distribution loop: i - {i+1: >3}/{self.no_x}, j - {j+1: >3}/{self.no_x} Time: {time.time()-start_time: .2f}', end='')
+                distance_from_center_cm = sqrt((i - self.mid_xy_array) ** 2 + (j - self.mid_xy_array) ** 2) * self.unit_length_cm
+                ion_density = RDD_function(distance_from_center_cm)
+                self.no_initialised_charge_carriers += self.no_z*ion_density
+                self.positive_array[i, j, no_z_electrode:(no_z_electrode+self.no_z)] += ion_density
+                self.negative_array[i, j, no_z_electrode:(no_z_electrode+self.no_z)] += ion_density
+        if self.debug: print('')
+
         calculation_time = time.time()
         for time_step in range(self.computation_time_steps):
             if self.debug: print(f'Calculation loop iteration {time_step+1}/{self.computation_time_steps}')
@@ -146,7 +149,6 @@ class single_track_PDEsolver():
             # calculate the new densities and store them in temporary arrays
             start_time = time.time()
 
-            #dunno what would be a good name for those coefficients
             szcz_pos = (self.sz+self.cz*(self.cz+1.)/2.)
             szcz_neg = (self.sz+self.cz*(self.cz-1.)/2.)
 
