@@ -14,7 +14,8 @@ def solvePDE(input, type: SolverType):
     if type == SolverType.CYTHON:
         return cython_single_track_PDEsolver(**input)
     elif type == SolverType.PYTHON:
-        return python_single_track_PDEsolver(**input)
+        PDE_solver = python_single_track_PDEsolver(**input)
+        return PDE_solver.solve()
     elif type == SolverType.NUMBA:
         return numba_single_track_PDEsolver(**input)
     elif type == SolverType.NUMBA_PARALLEL:
