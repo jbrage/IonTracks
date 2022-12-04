@@ -21,9 +21,10 @@ SLOW_TEST_DATA_DICT = dict(
     grid_size_um=[5, 10],
 )
 
+
 def create_matrix(data_dict):
     return pd.DataFrame.from_records(data=itertools.product(*data_dict.values()),
-                                      columns=data_dict.keys())
+                                     columns=data_dict.keys())
 
 
 # create a data frame with all the variables (combinations matrix)

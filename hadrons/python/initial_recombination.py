@@ -3,22 +3,8 @@ import numpy.random as rnd
 import time
 from math import exp, sqrt, pi, log, cos, sin
 from ..geiss_utils import Geiss_r_max, Geiss_RRD_cm
+from ..common_properties import W, ion_mobility, ion_diff, alpha, n_track_radii, no_z_electrode, air_density_g_cm3, water_density_g_cm3
 
-
-# define the parameters from Kanai (1998)
-W  = 33.9                # eV/ion pair for air
-ion_mobility  = 1.65     # cm^2 s^-1 V^-1, averaged for positive and negative ions
-ion_diff  = 3.7e-2       # cm^2/s, averaged for positive and negative ions
-alpha  = 1.60e-6         # cm^3/s, recombination constantno_figure_updates = 5
-        
-n_track_radii = 6 # scaling factor to determine the grid width
-#unit_length_cm = 6e-4   # [cm], grid resolution
-
-no_z_electrode = 4 #length of the electrode-buffer to ensure no ions drift through the array in one time step
-
-# parameters for the Geiss RDD
-air_density_g_cm3 = 1.225e-3  # dry air
-water_density_g_cm3 = 1.0
 
 class single_track_PDEsolver():
 
@@ -33,13 +19,13 @@ class single_track_PDEsolver():
                  unit_length_cm: float,
                  track_radius_cm: float,
                  debug: bool = False):
-    
-        self.LET_eV_cm  = LET_keV_um*1e7
+
+        self.LET_eV_cm = LET_keV_um*1e7
         density_ratio = water_density_g_cm3 / air_density_g_cm3
         self.a0_cm = a0_nm * 1e-7 * density_ratio
-        self.r_max_cm = Geiss_r_max(E_MeV_u, air_density_g_cm3)    
+        self.r_max_cm = Geiss_r_max(E_MeV_u, air_density_g_cm3)
         self.c = self.LET_eV_cm / (pi * W) * (1 / (1 + 2 * log(self.r_max_cm / self.a0_cm)))
-        
+
         # density parameters for the Gaussian structure
         N0 = self.LET_eV_cm/W     # Linear charge carrier density
         self.Gaussian_factor = N0/(pi*track_radius_cm**2)
@@ -47,7 +33,7 @@ class single_track_PDEsolver():
         # grid dimension parameters
         no_x = int(track_radius_cm*n_track_radii/unit_length_cm)
         # print(track_radius_cm*n_track_radii)
-        no_z = int(electrode_gap_cm/unit_length_cm) #number of elements in the z direction
+        no_z = int(electrode_gap_cm/unit_length_cm)  # number of elements in the z direction
         no_z_with_buffer = 2*no_z_electrode + no_z
         # find the middle of the arrays
         self.mid_xy_array = int(no_x/2.)
@@ -57,8 +43,8 @@ class single_track_PDEsolver():
             raise ValueError("Too many elements in the array: %i" % (no_x*no_x*no_z_with_buffer))
 
         # preallocate arrays
-        positive_array = np.zeros((no_x,no_x,no_z_with_buffer))
-        negative_array = np.zeros((no_x,no_x,no_z_with_buffer))
+        positive_array = np.zeros((no_x, no_x, no_z_with_buffer))
+        negative_array = np.zeros((no_x, no_x, no_z_with_buffer))
         no_initialised_charge_carriers = 0.0
 
         dt = 1.
@@ -112,7 +98,6 @@ class single_track_PDEsolver():
         self.no_initialised_charge_carriers = no_initialised_charge_carriers
         self.debug = debug
 
-
     def solve(self):
         positive_array_temp = np.zeros((self.no_x, self.no_x, self.no_z_with_buffer))
         negative_array_temp = np.zeros((self.no_x, self.no_x, self.no_z_with_buffer))
@@ -134,17 +119,22 @@ class single_track_PDEsolver():
         start_time = time.time()
         for i in range(self.no_x):
             for j in range(self.no_x):
-                if self.debug: print(f'\rGaussian distribution loop: i - {i+1: >3}/{self.no_x}, j - {j+1: >3}/{self.no_x} Time: {time.time()-start_time: .2f}', end='')
-                distance_from_center_cm = sqrt((i - self.mid_xy_array) ** 2 + (j - self.mid_xy_array) ** 2) * self.unit_length_cm
+                if self.debug:
+                    print(
+                        f'\rGaussian distribution loop: i - {i+1: >3}/{self.no_x}, j - {j+1: >3}/{self.no_x} Time: {time.time()-start_time: .2f}', end='')
+                distance_from_center_cm = sqrt((i - self.mid_xy_array) ** 2 +
+                                               (j - self.mid_xy_array) ** 2) * self.unit_length_cm
                 ion_density = RDD_function(distance_from_center_cm)
                 self.no_initialised_charge_carriers += self.no_z*ion_density
                 self.positive_array[i, j, no_z_electrode:(no_z_electrode+self.no_z)] += ion_density
                 self.negative_array[i, j, no_z_electrode:(no_z_electrode+self.no_z)] += ion_density
-        if self.debug: print('')
+        if self.debug:
+            print('')
 
         calculation_time = time.time()
         for time_step in range(self.computation_time_steps):
-            if self.debug: print(f'Calculation loop iteration {time_step+1}/{self.computation_time_steps}')
+            if self.debug:
+                print(f'Calculation loop iteration {time_step+1}/{self.computation_time_steps}')
 
             # calculate the new densities and store them in temporary arrays
             start_time = time.time()
@@ -158,50 +148,56 @@ class single_track_PDEsolver():
             sxcx_pos = (self.sx+self.cx*(self.cx+1.)/2.)
             sxcx_neg = (self.sx+self.cx*(self.cx-1.)/2.)
 
-            for i in range(1,self.no_x-1):
-                for j in range(1,self.no_x-1):
-                    for k in range(1,self.no_z_with_buffer-1):
-                        if self.debug: print(f'\rDensities calculation loop: i - {i+1: >3}/{self.no_x-1}, j - {j+1: >3}/{self.no_x-1}, k - {k+1: >3}/{self.no_z_with_buffer-1} Time: {time.time()-start_time: .2f}', end='')
+            for i in range(1, self.no_x-1):
+                for j in range(1, self.no_x-1):
+                    for k in range(1, self.no_z_with_buffer-1):
+                        if self.debug:
+                            print(
+                                f'\rDensities calculation loop: i - {i+1: >3}/{self.no_x-1}, j - {j+1: >3}/{self.no_x-1}, k - {k+1: >3}/{self.no_z_with_buffer-1} Time: {time.time()-start_time: .2f}', end='')
                         # using the Lax-Wendroff scheme
 
-                        positive_temp_entry = szcz_pos*self.positive_array[i,j,k-1]
-                        positive_temp_entry += szcz_neg*self.positive_array[i,j,k+1]
+                        positive_temp_entry = szcz_pos*self.positive_array[i, j, k-1]
+                        positive_temp_entry += szcz_neg*self.positive_array[i, j, k+1]
 
-                        positive_temp_entry += sycy_pos*self.positive_array[i,j-1,k]
-                        positive_temp_entry += sycy_neg*self.positive_array[i,j+1,k]
+                        positive_temp_entry += sycy_pos*self.positive_array[i, j-1, k]
+                        positive_temp_entry += sycy_neg*self.positive_array[i, j+1, k]
 
-                        positive_temp_entry += sxcx_pos*self.positive_array[i-1,j,k]
-                        positive_temp_entry += sxcx_neg*self.positive_array[i+1,j,k]
+                        positive_temp_entry += sxcx_pos*self.positive_array[i-1, j, k]
+                        positive_temp_entry += sxcx_neg*self.positive_array[i+1, j, k]
 
-                        positive_temp_entry += (1.- self.cx*self.cx - self.cy*self.cy - self.cz*self.cz - 2.*(self.sx+self.sy+self.sz))*self.positive_array[i,j,k]
+                        positive_temp_entry += (1. - self.cx*self.cx - self.cy*self.cy - self.cz *
+                                                self.cz - 2.*(self.sx+self.sy+self.sz))*self.positive_array[i, j, k]
 
                         # same for the negative charge carriers
-                        negative_temp_entry = szcz_pos*self.negative_array[i,j,k+1]
-                        negative_temp_entry += szcz_neg*self.negative_array[i,j,k-1]
+                        negative_temp_entry = szcz_pos*self.negative_array[i, j, k+1]
+                        negative_temp_entry += szcz_neg*self.negative_array[i, j, k-1]
 
-                        negative_temp_entry += sycy_pos*self.negative_array[i,j+1,k]
-                        negative_temp_entry += sycy_neg*self.negative_array[i,j-1,k]
+                        negative_temp_entry += sycy_pos*self.negative_array[i, j+1, k]
+                        negative_temp_entry += sycy_neg*self.negative_array[i, j-1, k]
 
-                        negative_temp_entry += sxcx_pos*self.negative_array[i+1,j,k]
-                        negative_temp_entry += sxcx_neg*self.negative_array[i-1,j,k]
+                        negative_temp_entry += sxcx_pos*self.negative_array[i+1, j, k]
+                        negative_temp_entry += sxcx_neg*self.negative_array[i-1, j, k]
 
-                        negative_temp_entry += (1. - self.cx*self.cx - self.cy*self.cy - self.cz*self.cz - 2.*(self.sx+self.sy+self.sz))*self.negative_array[i,j,k]
+                        negative_temp_entry += (1. - self.cx*self.cx - self.cy*self.cy - self.cz *
+                                                self.cz - 2.*(self.sx+self.sy+self.sz))*self.negative_array[i, j, k]
 
                         # the recombination part
-                        recomb_temp = alpha*self.positive_array[i,j,k]*self.negative_array[i,j,k]*self.dt
+                        recomb_temp = alpha*self.positive_array[i, j, k]*self.negative_array[i, j, k]*self.dt
 
-                        positive_array_temp[i,j,k] = positive_temp_entry - recomb_temp
-                        negative_array_temp[i,j,k] = negative_temp_entry - recomb_temp
+                        positive_array_temp[i, j, k] = positive_temp_entry - recomb_temp
+                        negative_array_temp[i, j, k] = negative_temp_entry - recomb_temp
                         no_recombined_charge_carriers += recomb_temp
-            if self.debug: print('')
+            if self.debug:
+                print('')
 
             # update the positive and negative arrays
             start_time = time.time()
 
-            self.positive_array[1:-1,1:-1,1:-1] = positive_array_temp[1:-1,1:-1,1:-1]
-            self.negative_array[1:-1,1:-1,1:-1] = negative_array_temp[1:-1,1:-1,1:-1]
+            self.positive_array[1:-1, 1:-1, 1:-1] = positive_array_temp[1:-1, 1:-1, 1:-1]
+            self.negative_array[1:-1, 1:-1, 1:-1] = negative_array_temp[1:-1, 1:-1, 1:-1]
 
         f = (self.no_initialised_charge_carriers - no_recombined_charge_carriers)/self.no_initialised_charge_carriers
 
-        if self.debug: print('Calculation loop combined time: ', time.time()-calculation_time)
+        if self.debug:
+            print('Calculation loop combined time: ', time.time()-calculation_time)
         return 1./f
