@@ -9,6 +9,7 @@ from hadrons.functions import E_MeV_u_to_LET_keV_um, calc_b_cm
 from hadrons.solver import SolverType, solvePDE
 from tests.utils import get_PDEsolver_input
 
+
 @pytest.mark.single_track
 @pytest.mark.numba
 @pytest.mark.parametrize("E_MeV_u", TEST_DATA_DICT["E_MeV_u"])
@@ -17,7 +18,7 @@ from tests.utils import get_PDEsolver_input
 @pytest.mark.parametrize("particle", TEST_DATA_DICT["particle"])
 @pytest.mark.parametrize("grid_size_um", TEST_DATA_DICT["grid_size_um"])
 def test_single_track_PDEsolver_numba(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um, expected_result):
-    
+
     single_track_PDEsolver_input = get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um)
     calculated_result = solvePDE(single_track_PDEsolver_input, SolverType.NUMBA_PARALLEL)
 
@@ -26,7 +27,7 @@ def test_single_track_PDEsolver_numba(E_MeV_u, voltage_V, electrode_gap_cm, part
     # TODO: Add resonable range sanity test here
     # assert calculated_result >= reasonable_minimum and calculated_result <= reasonable_maximum
 
-    def row_filter(row):    
+    def row_filter(row):
         return (
             row.particle == particle and
             np.allclose(row.LET_keV_um, single_track_PDEsolver_input['LET_keV_um']) and
@@ -41,5 +42,5 @@ def test_single_track_PDEsolver_numba(E_MeV_u, voltage_V, electrode_gap_cm, part
     print(calculated_result)
 
     assert len(expected) > 0
-    
+
     assert np.allclose(expected[0]['ks_Jaffe'], calculated_result, rtol=1e-3)
