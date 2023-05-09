@@ -248,6 +248,13 @@ def continuous_beam_PDEsolver(dict parameter_dic, dict extra_params_dic):
                     positive_array_temp[i,j,k] = positive_temp_entry - recomb_temp
                     negative_array_temp[i,j,k] = negative_temp_entry - recomb_temp
 
+		    # the SCS part
+                    
+                    SCS_temp_p = ion_mobility * positive_array[i,j,k] * (Q_el/Epsilon_0) * (positive_array[i,j,k] - negative_array[i,j,k]) * dt
+                    SCS_temp_n = ion_mobility * negative_array[i,j,k] * (Q_el/Epsilon_0) * (positive_array[i,j,k] - negative_array[i,j,k]) * dt
+                    positive_array_temp[i,j,k] = positive_temp_entry - SCS_temp_p
+                    negative_array_temp[i,j,k] = negative_temp_entry + SCS_temp_n
+
                     if time_step > separation_time_steps:
                         if k > no_z_electrode and k < (no_z + no_z_electrode):
                             if sqrt((i - mid_xy_array) ** 2 + (j - mid_xy_array) ** 2) < inner_radius:
