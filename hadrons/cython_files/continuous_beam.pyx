@@ -32,6 +32,9 @@ def continuous_beam_PDEsolver(dict parameter_dic, dict extra_params_dic):
     rnd.seed(seed)                                                      # set the new seed
     cdef bint PRINT             = extra_params_dic["PRINT_parameters"]  # print parameters?
 
+    cdef double Q_el=1.6*10**-19                                        # [C]
+    cdef double Epsilon_0=8.85*10**-14                                  # [C/V*cm]
+
     cdef double unit_length_cm  = extra_params_dic["unit_length_cm"]    # cm, size of every voxel length
 
     '''
