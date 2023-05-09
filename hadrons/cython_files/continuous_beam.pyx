@@ -16,7 +16,7 @@ def continuous_beam_PDEsolver(dict parameter_dic, dict extra_params_dic):
     '''
     Define the parameters from Kanai (1998)
     '''
-    cdef double W = 34.2  # eV/ion pair for air (protons; https://www.sciencedirect.com/science/article/abs/pii/S0969806X05003695)
+    cdef double W = 34.2  # eV/ion pair for air (protons; https://www.sciencedirect.com/science/article/abs/pii/S0969806X05003695) .
     cdef double ion_mobility = 1.65     # cm^2 s^-1 V^-1, averaged for positive and negative ions
     cdef double ion_diff = 3.7e-2       # cm^2/s, averaged for positive and negative ions
     cdef double alpha = 1.60e-6         # cm^3/s, recombination constant
