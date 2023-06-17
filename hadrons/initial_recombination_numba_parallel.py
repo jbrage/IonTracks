@@ -19,7 +19,7 @@ def Geiss_RRD_cm(r_cm, c, a0_cm, r_max_cm):
     else:
       return 0
 
-@njit
+@njit(fastmath=True)
 def initialize_Gaussian_distriution_Gauss(no_x, no_z_with_buffer, mid_xy_array, unit_length_cm, no_z, no_z_electrode, track_radius_cm, Gaussian_factor):
     no_initialised_charge_carriers = 0.0
     positive_array = np.zeros((no_x,no_x,no_z_with_buffer))
@@ -35,7 +35,7 @@ def initialize_Gaussian_distriution_Gauss(no_x, no_z_with_buffer, mid_xy_array, 
 
     return no_initialised_charge_carriers, positive_array, negative_array
 
-@njit
+@njit(fastmath=True)
 def initialize_Gaussian_distriution_Geiss(no_x, no_z_with_buffer, mid_xy_array, unit_length_cm, no_z, no_z_electrode, c, a0_cm, r_max_cm):
     no_initialised_charge_carriers = 0.0
     positive_array = np.zeros((no_x,no_x,no_z_with_buffer))
@@ -51,13 +51,13 @@ def initialize_Gaussian_distriution_Geiss(no_x, no_z_with_buffer, mid_xy_array, 
 
     return no_initialised_charge_carriers, positive_array, negative_array
 
-@njit
+@njit(fastmath=True)
 def calculate_densities(sz, cz, sy, cy, sx, cx, no_x, no_z_with_buffer, positive_array, negative_array, positive_array_temp, negative_array_temp, alpha, dt, no_recombined_charge_carriers):
     
 
     return positive_array, negative_array, no_recombined_charge_carriers
 
-@njit
+@njit(fastmath=True)
 def main_loop(sz, cz, sy, cy, sx, cx, no_x, no_z_with_buffer, positive_array, negative_array, alpha, dt, no_recombined_charge_carriers, computation_time_steps, no_initialised_charge_carriers):
     for time_step in range(computation_time_steps):
 
@@ -83,33 +83,21 @@ def main_loop(sz, cz, sy, cy, sx, cx, no_x, no_z_with_buffer, positive_array, ne
 
     return f
 
-@njit(parallel=True)
+@njit(parallel=True, nogil=True, fastmath=True)
 def lax_wendroff_wrapper(no_x, no_z_with_buffer, szcz_pos, szcz_neg, sycy_pos, sycy_neg, sxcx_pos, sxcx_neg, positive_array, negative_array, cx, cy, cz, sx, sy, sz, alpha, dt):
     positive_array_temp = np.zeros((no_x,no_x,no_z_with_buffer))
     negative_array_temp = np.zeros((no_x, no_x,no_z_with_buffer))
     no_recombined_charge_carriers = 0
 
     for i in prange(1,no_x-1):
-            for j in prange(1,no_x-1):
-                for k in prange(1,no_z_with_buffer-1):
+            for j in range(1,no_x-1):
+                for k in range(1,no_z_with_buffer-1):
                     positive_array_temp[i, j, k], negative_array_temp[i, j, k], no_recombined_charge_carriers_chunk = lax_wendroff_scheme(i, j, k, szcz_pos, szcz_neg, sycy_pos, sycy_neg, sxcx_pos, sxcx_neg, positive_array, negative_array, cx, cy, cz, sx, sy, sz, alpha, dt)
                     no_recombined_charge_carriers+=no_recombined_charge_carriers_chunk
 
-    # l_x = np.arange(1,no_x-1)
-    # l_z = np.arange(1,no_z_with_buffer-1)
-
-    # for idx in prange(0,(no_x-2)*(no_x-2)*(no_z_with_buffer-2)):
-    #     i = l_x[idx%(no_x-2)]
-    #     j = l_x[(idx//(no_x-2))%(no_x-2)]
-    #     k = l_z[idx//(no_x-2)//(no_x-2)]
-    #     positive_array_temp[i, j, k], negative_array_temp[i, j, k], no_recombined_charge_carriers_chunk = lax_wendroff_scheme(i, j, k, szcz_pos, szcz_neg, sycy_pos, sycy_neg, sxcx_pos, sxcx_neg, positive_array, negative_array, cx, cy, cz, sx, sy, sz, alpha, dt)
-    #     no_recombined_charge_carriers+=no_recombined_charge_carriers_chunk
-
-        
-    
     return positive_array_temp, negative_array_temp, no_recombined_charge_carriers
 
-@njit
+@njit(fastmath=True)
 def lax_wendroff_scheme(i, j, k, szcz_pos, szcz_neg, sycy_pos, sycy_neg, sxcx_pos, sxcx_neg, positive_array, negative_array, cx, cy, cz, sx, sy, sz, alpha, dt):
     # using the Lax-Wendroff scheme
     positive_temp_entry = szcz_pos*positive_array[i,j,k-1]

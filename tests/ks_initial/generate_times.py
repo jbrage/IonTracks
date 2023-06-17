@@ -1,6 +1,6 @@
 import time
 from hadrons.solver import solvePDE
-from tests.ks_initial.testing_parameters import SLOW_MATRIX_DF as MATRIX_DF
+from tests.ks_initial.testing_parameters import TEST_DATA_FRAMES
 from tests.utils import get_PDEsolver_input
 from hadrons.solver import SolverType
 from pathlib import Path
@@ -22,27 +22,29 @@ def time_solver(row, solver_type, verbose=DEBUG):
 
     run_time = time.time() - start_time
     
-    if DEBUG:
+    if verbose:
         print(f'{solver_type} ran for {run_time} seconds.')
 
     return run_time
 
 def main():
-    result_df = MATRIX_DF.copy()
-
     # compile numba so the compilation time is not included in timing
     for solver_type in [SolverType.NUMBA_PARALLEL, SolverType.NUMBA]:
-        time_solver(MATRIX_DF.iloc[0], solver_type, verbose=False)
+        time_solver(TEST_DATA_FRAMES[0].iloc[0], solver_type, verbose=False)
 
-    # for solver_type in SolverType:
-    for solver_type in [SolverType.NUMBA_PARALLEL, SolverType.NUMBA, SolverType.CYTHON]:
-        result_df[f'{solver_type.name.lower()}_time'] = MATRIX_DF.apply(lambda row: time_solver(row, solver_type), axis=1)
+    for idx, MATRIX_DF in enumerate(TEST_DATA_FRAMES):
+        result_df = MATRIX_DF.copy()
 
-    filepath = Path('times_result.csv')
+        print(f"CALCULATING DF {idx}")
 
-    print(result_df)
-    
-    result_df.to_csv(filepath)
+        for solver_type in [SolverType.NUMBA_PARALLEL, SolverType.CYTHON]:
+            result_df[f'{solver_type.name.lower()}_time'] = MATRIX_DF.apply(lambda row: time_solver(row, solver_type), axis=1)
+
+        filepath = Path(f'times_result_{idx}.csv')
+
+        print(result_df)
+        
+        result_df.to_csv(filepath)
 
     return 0
 
