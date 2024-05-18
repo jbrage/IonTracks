@@ -25,7 +25,6 @@ class pulsed_beam_PDEsolver:
         """
         # LET_eV_cm = LET_keV_um*1e7
         r_cm = 0.002  # radius of the sampled cylinder
-        area_cm2 = r_cm**2 * pi  # the "recombination" area
         unit_length_cm = 5e-4  # cm, size of every voxel length
         no_xy = int(2 * r_cm / unit_length_cm)  # no of voxels in xy-directions
         buffer_radius = 5
@@ -39,15 +38,6 @@ class pulsed_beam_PDEsolver:
                 "Too many elements in the array: %i"
                 % (no_xy * no_xy * no_z_with_buffer)
             )
-
-        # find the middle of the arrays
-        mid_xy_array = int(no_xy / 2.0)
-        mid_z_array = int(no_z / 2.0)
-        outer_radius = no_xy / 2.0
-        inner_radius = outer_radius - buffer_radius
-
-        no_figure_updates = 5  # update the figure this number of times
-        # number_of_iterations = 1e2      # preallocate track coordinates
 
         """
         find a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
