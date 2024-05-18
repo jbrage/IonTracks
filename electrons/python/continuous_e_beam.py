@@ -1,91 +1,15 @@
 from __future__ import division
 import numpy as np
-import pandas as pd
+
+from generic_electron_solver import GenericElectronSolver
 
 
-class pulsed_beam_PDEsolver:
-
-    def __init__(self, parameter_dic):
-        """
-        Define the parameters from Kanai (1998)
-        """
-        # W = 33.9  # eV/ion pair for air
-        ion_mobility = 1.73  # cm s^-1 V^-1, averaged for positive and negative ions
-        ion_diff = 3.7e-2  # cm^2/s, averaged for positive and negative ions
-        alpha = 1.60e-6  # cm^3/s, recombination constant
-
-        electron_density_per_cm3 = parameter_dic[
-            "elec_per_cm3"
-        ]  # fluence-rate [/cm^2/s]
-        voltage_V = parameter_dic["voltage_V"]  # [V/cm] magnitude of the electric field
-        d_cm = parameter_dic["d_cm"]  # [cm] # electrode gap
-
-        """
-        Define the grid size parameters
-        """
-        # LET_eV_cm = LET_keV_um*1e7
-        r_cm = 0.002  # radius of the sampled cylinder
-        unit_length_cm = 6e-4  # cm, size of every voxel length
-        no_xy = int(2 * r_cm / unit_length_cm)  # no of voxels in xy-directions
-        buffer_radius = 5
-        no_xy += 2 * buffer_radius
-        no_z = int(d_cm / unit_length_cm)  # number of elements in the z direction
-        no_z_electrode = 5  # length of the electrode-buffer to ensure no ions drift through the array in one time step
-        no_z_with_buffer = 2 * no_z_electrode + no_z
-        # depending on the cluster/computer, the upper limit may be changed
-        if (no_xy * no_xy * no_z) > 1e8:
-            raise ValueError(
-                "Too many elements in the array: %i"
-                % (no_xy * no_xy * no_z_with_buffer)
-            )
-
-        """
-        find a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
-        decreases and eventually damps out
-        """
-        dt = 1.0
-        von_neumann_expression = False
-        sx, sy, sz, cx, cy, cz
-        Efield_V_cm = voltage_V / d_cm  # to ensure the same dt in all simulations
-        while not von_neumann_expression:
-            dt /= 1.01
-            # as defined in the Deghan (2004) paper
-            # sx = ion_diff*dt/(unit_length_cm**2)
-            # sy = ion_diff*dt/(unit_length_cm**2)
-            sx = sy = (
-                0.0  # uniform charge => no gradient driven diffusion in the xy plane
-            )
-            sz = ion_diff * dt / (unit_length_cm**2)
-            cx = cy = 0.0
-            cz = ion_mobility * Efield_V_cm * dt / unit_length_cm
-            # check von Neumann's criterion
-            von_neumann_expression = (
-                2 * (sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1
-                and cx**2 * cy**2 * cz**2 <= 8 * sx * sy * sz
-            )
-
-        """
-        Calculate the number of step required to drag the two charge carrier distributions apart
-        along with the number of tracks to be uniformly distributed over the domain
-        """
-        separation_time_steps = int(d_cm / (2.0 * ion_mobility * Efield_V_cm * dt))
-
-        self.computation_time_steps = separation_time_steps * 3
-        self.no_xy = no_xy
-        self.no_z_with_buffer = no_z_with_buffer
-        self.no_z_electrode = no_z_electrode
-        self.dt = dt
-        self.no_z = no_z
-        self.electron_density_per_cm3 = electron_density_per_cm3
-        self.sx = sx
-        self.sy = sy
-        self.sz = sz
-        self.cx = cx
-        self.cy = cy
-        self.cz = cz
-        self.alpha = alpha
+class PulsedBeamPDEsolver(GenericElectronSolver):
+    unit_length_cm = 6e-4  # cm, size of every voxel length
 
     def calculate(self):
+        # refering to each param with a `self.` prefix makes the code less readable so we unpack them here
+        # this also prevents accidental mutations to the params - subsequent calls to `calculate` won't have side-effects
         no_xy = self.no_xy
         no_z_with_buffer = self.no_z_with_buffer
         computation_time_steps = self.computation_time_steps
@@ -114,7 +38,6 @@ class pulsed_beam_PDEsolver:
         """
 
         positive_temp_entry, negative_temp_entry, recomb_temp = 0.0
-        i, j, k, time_step
 
         step_recombined, step_initialized
 
@@ -227,10 +150,13 @@ class pulsed_beam_PDEsolver:
                         positive_array[i, j, k] = positive_array_temp[i, j, k]
                         negative_array[i, j, k] = negative_array_temp[i, j, k]
 
-        charge_collection_df = pd.DataFrame()
-        charge_collection_df["f"] = f_steps_list
-        charge_collection_df["ks"] = 1 / f_steps_list
-        charge_collection_df["time_s"] = np.arange(0, len(f_steps_list) * dt, dt)
-        charge_collection_df["time_us"] = charge_collection_df["time_s"] * 1e6
+        # ---- not necesarily sure what this is ----
+        # charge_collection_df = pd.DataFrame()
+        # charge_collection_df["f"] = f_steps_list
+        # charge_collection_df["ks"] = 1 / f_steps_list
+        # charge_collection_df["time_s"] = np.arange(0, len(f_steps_list) * dt, dt)
+        # charge_collection_df["time_us"] = charge_collection_df["time_s"] * 1e6
+        # return charge_collection_df
+        # ------------------------------------------
 
-        return charge_collection_df
+        return f_steps_list
