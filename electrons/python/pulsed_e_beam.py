@@ -7,6 +7,20 @@ from generic_electron_solver import GenericElectronSolver
 class PulsedBeamPDEsolver(GenericElectronSolver):
     unit_length_cm = 5e-4  # cm, size of every voxel length
 
+    def get_electron_density_after_beam(self, positive_array, negative_array):
+        delta_border = 2
+
+        for k in range(self.no_z_electrode, self.no_z + self.no_z_electrode):
+            for i in range(delta_border, self.no_xy - delta_border):
+                for j in range(delta_border, self.no_xy - delta_border):
+                    positive_array[i, j, k] += self.electron_density_per_cm3
+                    negative_array[i, j, k] += self.electron_density_per_cm3
+                    if positive_array[i, j, k] > MAXVAL:
+                        MAXVAL = positive_array[i, j, k]
+                    no_initialised_charge_carriers += self.electron_density_per_cm3
+
+        return positive_array, negative_array
+
     def calculate(self):
         # refering to each param with a `self.` prefix makes the code less readable so we unpack them here
         # this also prevents accidental mutations to the params - subsequent calls to `calculate` won't have side-effects
@@ -16,7 +30,6 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
         no_z_electrode = self.no_z_electrode
         dt = self.dt
         no_z = self.no_z
-        electron_density_per_cm3 = self.electron_density_per_cm3
         sx = self.sx
         sy = self.sy
         sz = self.sz
@@ -39,19 +52,12 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
 
         f, positive_temp_entry, negative_temp_entry, recomb_temp = 0.0
 
-        delta_border = 2
-
         """
         Fill the array with the electron density according to the pulesed beam
         """
-        for k in range(no_z_electrode, no_z + no_z_electrode):
-            for i in range(delta_border, no_xy - delta_border):
-                for j in range(delta_border, no_xy - delta_border):
-                    positive_array[i, j, k] += electron_density_per_cm3
-                    negative_array[i, j, k] += electron_density_per_cm3
-                    if positive_array[i, j, k] > MAXVAL:
-                        MAXVAL = positive_array[i, j, k]
-                    no_initialised_charge_carriers += electron_density_per_cm3
+        positive_array, negative_array = self.get_electron_density_after_beam(
+            positive_array, negative_array
+        )
 
         """
         Start the simulation by evovling the distribution one step at a time

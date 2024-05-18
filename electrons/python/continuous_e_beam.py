@@ -7,6 +7,34 @@ from generic_electron_solver import GenericElectronSolver
 class PulsedBeamPDEsolver(GenericElectronSolver):
     unit_length_cm = 6e-4  # cm, size of every voxel length
 
+    def get_electron_density_after_beam(
+        self,
+        positive_array,
+        negative_array,
+        no_initialised_charge_carriers,
+        step_initialized,
+    ):
+        delta_border = 2
+        electron_density_per_cm3_s = self.electron_density_per_cm3 * self.dt
+
+        for k in range(self.no_z_electrode, self.no_z + self.no_z_electrode):
+            for i in range(delta_border, self.no_xy - delta_border):
+                for j in range(delta_border, self.no_xy - delta_border):
+
+                    positive_array[i, j, k] += electron_density_per_cm3_s
+                    negative_array[i, j, k] += electron_density_per_cm3_s
+                    if positive_array[i, j, k] > MAXVAL:
+                        MAXVAL = positive_array[i, j, k]
+                    no_initialised_charge_carriers += electron_density_per_cm3_s
+                    step_initialized += electron_density_per_cm3_s
+
+        return (
+            positive_array,
+            negative_array,
+            no_initialised_charge_carriers,
+            step_initialized,
+        )
+
     def calculate(self):
         # refering to each param with a `self.` prefix makes the code less readable so we unpack them here
         # this also prevents accidental mutations to the params - subsequent calls to `calculate` won't have side-effects
@@ -16,7 +44,6 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
         no_z_electrode = self.no_z_electrode
         dt = self.dt
         no_z = self.no_z
-        electron_density_per_cm3 = self.electron_density_per_cm3
         sx = self.sx
         sy = self.sy
         sz = self.sz
@@ -41,10 +68,7 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
 
         step_recombined, step_initialized
 
-        delta_border = 2
         f_steps_list = np.zeros(computation_time_steps)
-
-        electron_density_per_cm3_s = electron_density_per_cm3 * dt
 
         """
         Start the simulation by evolving the distribution one step at a time
@@ -57,16 +81,17 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
             """
             Refill the array with the electron density each time step
             """
-            for k in range(no_z_electrode, no_z + no_z_electrode):
-                for i in range(delta_border, no_xy - delta_border):
-                    for j in range(delta_border, no_xy - delta_border):
-
-                        positive_array[i, j, k] += electron_density_per_cm3_s
-                        negative_array[i, j, k] += electron_density_per_cm3_s
-                        if positive_array[i, j, k] > MAXVAL:
-                            MAXVAL = positive_array[i, j, k]
-                        no_initialised_charge_carriers += electron_density_per_cm3_s
-                        step_initialized += electron_density_per_cm3_s
+            (
+                positive_array,
+                negative_array,
+                no_initialised_charge_carriers,
+                step_initialized,
+            ) = self.get_electron_density_after_beam(
+                positive_array,
+                negative_array,
+                no_initialised_charge_carriers,
+                step_initialized,
+            )
 
             # calculate the new densities and store them in temporary arrays
             for i in range(1, no_xy - 1):
