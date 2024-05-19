@@ -7,7 +7,12 @@ class GenericElectronSolver(ABC):
     def unit_length_cm(self):
         pass
 
-    def __init__(self, parameter_dic):
+    def __init__(
+        self,
+        electron_density_per_cm3,  # fluence-rate [/cm^2/s]
+        voltage_V,  # [V/cm] magnitude of the electric field
+        electrode_gap,  # [cm] # electrode gap
+    ):
         """
         Define the parameters from Kanai (1998)
         """
@@ -15,11 +20,7 @@ class GenericElectronSolver(ABC):
         ion_mobility = 1.73  # cm s^-1 V^-1, averaged for positive and negative ions
         ion_diff = 3.7e-2  # cm^2/s, averaged for positive and negative ions
         alpha = 1.60e-6  # cm^3/s, recombination constant
-        electron_density_per_cm3 = parameter_dic[
-            "elec_per_cm3"
-        ]  # fluence-rate [/cm^2/s]
-        voltage_V = parameter_dic["voltage_V"]  # [V/cm] magnitude of the electric field
-        d_cm = parameter_dic["d_cm"]  # [cm] # electrode gap
+
         """
         Define the grid size parameters
         """
@@ -28,7 +29,9 @@ class GenericElectronSolver(ABC):
         no_xy = int(2 * r_cm / self.unit_length_cm)  # no of voxels in xy-directions
         buffer_radius = 5
         no_xy += 2 * buffer_radius
-        no_z = int(d_cm / self.unit_length_cm)  # number of elements in the z direction
+        no_z = int(
+            electrode_gap / self.unit_length_cm
+        )  # number of elements in the z direction
         no_z_electrode = 5  # length of the electrode-buffer to ensure no ions drift through the array in one time step
         no_z_with_buffer = 2 * no_z_electrode + no_z
         # depending on the cluster/computer, the upper limit may be changed
@@ -44,7 +47,9 @@ class GenericElectronSolver(ABC):
         dt = 1.0
         von_neumann_expression = False
         sx, sy, sz, cx, cy, cz
-        Efield_V_cm = voltage_V / d_cm  # to ensure the same dt in all simulations
+        Efield_V_cm = (
+            voltage_V / electrode_gap
+        )  # to ensure the same dt in all simulations
         while not von_neumann_expression:
             dt /= 1.01
             # as defined in the Deghan (2004) paper
@@ -65,7 +70,9 @@ class GenericElectronSolver(ABC):
         Calculate the number of step required to drag the two charge carrier distributions apart
         along with the number of tracks to be uniformly distributed over the domain
         """
-        separation_time_steps = int(d_cm / (2.0 * ion_mobility * Efield_V_cm * dt))
+        separation_time_steps = int(
+            electrode_gap / (2.0 * ion_mobility * Efield_V_cm * dt)
+        )
         self.computation_time_steps = separation_time_steps * 3
         self.no_xy = no_xy
         self.no_z_with_buffer = no_z_with_buffer
