@@ -5,9 +5,10 @@ from generic_electron_solver import GenericElectronSolver
 
 
 class PulsedBeamPDEsolver(GenericElectronSolver):
-    unit_length_cm = 5e-4  # cm, size of every voxel length
 
-    def get_electron_density_after_beam(self, positive_array, negative_array):
+    def get_electron_density_after_beam(
+        self, positive_array, negative_array, no_initialised_charge_carriers
+    ):
         delta_border = 2
 
         for k in range(self.no_z_electrode, self.no_z + self.no_z_electrode):
@@ -15,11 +16,9 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
                 for j in range(delta_border, self.no_xy - delta_border):
                     positive_array[i, j, k] += self.electron_density_per_cm3
                     negative_array[i, j, k] += self.electron_density_per_cm3
-                    if positive_array[i, j, k] > MAXVAL:
-                        MAXVAL = positive_array[i, j, k]
                     no_initialised_charge_carriers += self.electron_density_per_cm3
 
-        return positive_array, negative_array
+        return positive_array, negative_array, no_initialised_charge_carriers
 
     def calculate(self):
         # refering to each param with a `self.` prefix makes the code less readable so we unpack them here
@@ -50,13 +49,15 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
         The tracks are distributed uniformly in time
         """
 
-        f, positive_temp_entry, negative_temp_entry, recomb_temp = 0.0
+        f = positive_temp_entry = negative_temp_entry = recomb_temp = 0.0
 
         """
         Fill the array with the electron density according to the pulesed beam
         """
-        positive_array, negative_array = self.get_electron_density_after_beam(
-            positive_array, negative_array
+        positive_array, negative_array, no_initialised_charge_carriers = (
+            self.get_electron_density_after_beam(
+                positive_array, negative_array, no_initialised_charge_carriers
+            )
         )
 
         szcz_pos = sz + cz * (cz + 1.0) / 2.0

@@ -5,8 +5,6 @@ from generic_electron_solver import GenericElectronSolver
 
 
 class ContinousBeamPDEsolver(GenericElectronSolver):
-    unit_length_cm = 6e-4  # cm, size of every voxel length
-
     def get_electron_density_after_beam(
         self,
         positive_array,
@@ -23,8 +21,6 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
 
                     positive_array[i, j, k] += electron_density_per_cm3_s
                     negative_array[i, j, k] += electron_density_per_cm3_s
-                    if positive_array[i, j, k] > MAXVAL:
-                        MAXVAL = positive_array[i, j, k]
                     no_initialised_charge_carriers += electron_density_per_cm3_s
                     step_initialized += electron_density_per_cm3_s
 

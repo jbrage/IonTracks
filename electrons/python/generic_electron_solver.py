@@ -3,34 +3,26 @@ from abc import ABC
 
 
 class GenericElectronSolver(ABC):
-    @property
-    def unit_length_cm(self):
-        pass
-
     def __init__(
         self,
         electron_density_per_cm3,  # fluence-rate [/cm^2/s]
         voltage_V,  # [V/cm] magnitude of the electric field
         electrode_gap,  # [cm] # electrode gap
+        unit_length_cm,
+        ion_mobility=1.73,  # cm s^-1 V^-1, averaged for positive and negative ions
+        ion_diff=3.7e-2,  # cm^2/s, averaged for positive and negative ions
+        alpha=1.60e-6,  # cm^3/s, recombination constant
+        r_cm=0.002,  # radius of the sampled cylinder
+        buffer_radius=5,
     ):
-        """
-        Define the parameters from Kanai (1998)
-        """
-        # W = 33.9  # eV/ion pair for air
-        ion_mobility = 1.73  # cm s^-1 V^-1, averaged for positive and negative ions
-        ion_diff = 3.7e-2  # cm^2/s, averaged for positive and negative ions
-        alpha = 1.60e-6  # cm^3/s, recombination constant
-
         """
         Define the grid size parameters
         """
         # LET_eV_cm = LET_keV_um*1e7
-        r_cm = 0.002  # radius of the sampled cylinder
-        no_xy = int(2 * r_cm / self.unit_length_cm)  # no of voxels in xy-directions
-        buffer_radius = 5
+        no_xy = int(2 * r_cm / unit_length_cm)  # no of voxels in xy-directions
         no_xy += 2 * buffer_radius
         no_z = int(
-            electrode_gap / self.unit_length_cm
+            electrode_gap / unit_length_cm
         )  # number of elements in the z direction
         no_z_electrode = 5  # length of the electrode-buffer to ensure no ions drift through the array in one time step
         no_z_with_buffer = 2 * no_z_electrode + no_z
@@ -46,7 +38,6 @@ class GenericElectronSolver(ABC):
         """
         dt = 1.0
         von_neumann_expression = False
-        sx, sy, sz, cx, cy, cz
         Efield_V_cm = (
             voltage_V / electrode_gap
         )  # to ensure the same dt in all simulations
@@ -58,9 +49,10 @@ class GenericElectronSolver(ABC):
             sx = sy = (
                 0.0  # uniform charge => no gradient driven diffusion in the xy plane
             )
-            sz = ion_diff * dt / (self.unit_length_cm**2)
+
+            sz = ion_diff * dt / (unit_length_cm**2)
             cx = cy = 0.0
-            cz = ion_mobility * Efield_V_cm * dt / self.unit_length_cm
+            cz = ion_mobility * Efield_V_cm * dt / unit_length_cm
             # check von Neumann's criterion
             von_neumann_expression = (
                 2 * (sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1
