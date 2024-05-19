@@ -89,18 +89,18 @@ def main_loop(
     negative_array_temp = np.zeros((no_x, no_x, no_z_with_buffer))
     no_recombined_charge_carriers = 0.0
 
+    # calculate the new densities and store them in temporary arrays
+    # dunno what would be a good name for those coefficients
+    szcz_pos = sz + cz * (cz + 1.0) / 2.0
+    szcz_neg = sz + cz * (cz - 1.0) / 2.0
+
+    sycy_pos = sy + cy * (cy + 1.0) / 2.0
+    sycy_neg = sy + cy * (cy - 1.0) / 2.0
+
+    sxcx_pos = sx + cx * (cx + 1.0) / 2.0
+    sxcx_neg = sx + cx * (cx - 1.0) / 2.0
+
     for _ in range(computation_time_steps):
-        # calculate the new densities and store them in temporary arrays
-        # dunno what would be a good name for those coefficients
-        szcz_pos = sz + cz * (cz + 1.0) / 2.0
-        szcz_neg = sz + cz * (cz - 1.0) / 2.0
-
-        sycy_pos = sy + cy * (cy + 1.0) / 2.0
-        sycy_neg = sy + cy * (cy - 1.0) / 2.0
-
-        sxcx_pos = sx + cx * (cx + 1.0) / 2.0
-        sxcx_neg = sx + cx * (cx - 1.0) / 2.0
-
         for i in range(1, no_x - 1):
             for j in range(1, no_x - 1):
                 for k in range(1, no_z_with_buffer - 1):
@@ -139,6 +139,7 @@ def main_loop(
 
                     positive_array_temp[i, j, k] = positive_temp_entry - recomb_temp
                     negative_array_temp[i, j, k] = negative_temp_entry - recomb_temp
+
                     no_recombined_charge_carriers += recomb_temp
 
         for i in range(1, no_x - 1):

@@ -4,7 +4,7 @@ import numpy as np
 from generic_electron_solver import GenericElectronSolver
 
 
-class PulsedBeamPDEsolver(GenericElectronSolver):
+class ContinousBeamPDEsolver(GenericElectronSolver):
     unit_length_cm = 6e-4  # cm, size of every voxel length
 
     def get_electron_density_after_beam(
@@ -70,6 +70,15 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
 
         f_steps_list = np.zeros(computation_time_steps)
 
+        szcz_pos = sz + cz * (cz + 1.0) / 2.0
+        szcz_neg = sz + cz * (cz - 1.0) / 2.0
+
+        sycy_pos = sy + cy * (cy + 1.0) / 2.0
+        sycy_neg = sy + cy * (cy - 1.0) / 2.0
+
+        sxcx_pos = sx + cx * (cx + 1.0) / 2.0
+        sxcx_neg = sx + cx * (cx - 1.0) / 2.0
+
         """
         Start the simulation by evolving the distribution one step at a time
         """
@@ -98,52 +107,28 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
                 for j in range(1, no_xy - 1):
                     for k in range(1, no_z_with_buffer - 1):
                         # using the Lax-Wendroff scheme
-                        positive_temp_entry = (
-                            sz + cz * (cz + 1.0) / 2.0
-                        ) * positive_array[i, j, k - 1]
-                        positive_temp_entry += (
-                            sz + cz * (cz - 1.0) / 2.0
-                        ) * positive_array[i, j, k + 1]
+                        positive_temp_entry = szcz_pos * positive_array[i, j, k - 1]
+                        positive_temp_entry += szcz_neg * positive_array[i, j, k + 1]
 
-                        positive_temp_entry += (
-                            sy + cy * (cy + 1.0) / 2.0
-                        ) * positive_array[i, j - 1, k]
-                        positive_temp_entry += (
-                            sy + cy * (cy - 1.0) / 2.0
-                        ) * positive_array[i, j + 1, k]
+                        positive_temp_entry += sycy_pos * positive_array[i, j - 1, k]
+                        positive_temp_entry += sycy_neg * positive_array[i, j + 1, k]
 
-                        positive_temp_entry += (
-                            sx + cx * (cx + 1.0) / 2.0
-                        ) * positive_array[i - 1, j, k]
-                        positive_temp_entry += (
-                            sx + cx * (cx - 1.0) / 2.0
-                        ) * positive_array[i + 1, j, k]
+                        positive_temp_entry += sxcx_pos * positive_array[i - 1, j, k]
+                        positive_temp_entry += sxcx_neg * positive_array[i + 1, j, k]
 
                         positive_temp_entry += (
                             1.0 - cx * cx - cy * cy - cz * cz - 2.0 * (sx + sy + sz)
                         ) * positive_array[i, j, k]
 
                         # same for the negative charge carriers
-                        negative_temp_entry = (
-                            sz + cz * (cz + 1.0) / 2.0
-                        ) * negative_array[i, j, k + 1]
-                        negative_temp_entry += (
-                            sz + cz * (cz - 1.0) / 2.0
-                        ) * negative_array[i, j, k - 1]
+                        negative_temp_entry = szcz_pos * negative_array[i, j, k + 1]
+                        negative_temp_entry += szcz_neg * negative_array[i, j, k - 1]
 
-                        negative_temp_entry += (
-                            sy + cy * (cy + 1.0) / 2.0
-                        ) * negative_array[i, j + 1, k]
-                        negative_temp_entry += (
-                            sy + cy * (cy - 1.0) / 2.0
-                        ) * negative_array[i, j - 1, k]
+                        negative_temp_entry += sycy_pos * negative_array[i, j + 1, k]
+                        negative_temp_entry += sycy_neg * negative_array[i, j - 1, k]
 
-                        negative_temp_entry += (
-                            sx + cx * (cx + 1.0) / 2.0
-                        ) * negative_array[i + 1, j, k]
-                        negative_temp_entry += (
-                            sx + cx * (cx - 1.0) / 2.0
-                        ) * negative_array[i - 1, j, k]
+                        negative_temp_entry += sxcx_pos * negative_array[i + 1, j, k]
+                        negative_temp_entry += sxcx_neg * negative_array[i - 1, j, k]
 
                         negative_temp_entry += (
                             1.0 - cx * cx - cy * cy - cz * cz - 2.0 * (sx + sy + sz)
@@ -158,7 +143,6 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
                         )
                         positive_array_temp[i, j, k] = positive_temp_entry - recomb_temp
                         negative_array_temp[i, j, k] = negative_temp_entry - recomb_temp
-
                         if k > no_z_electrode and k < (no_z + no_z_electrode):
                             # sum over the recombination between the virtual electrodes
                             no_recombined_charge_carriers += recomb_temp
