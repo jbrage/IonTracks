@@ -10,7 +10,7 @@ def run_simulation(
     electrode_gap=0.1,
     electron_density_per_cm3=1e9,
 ):
-    solver_name = sys.argv[1] if len(sys.argv) > 0 else ""
+    solver_name = sys.argv[1] if len(sys.argv) > 1 else ""
 
     Solver = (
         SOLVER_MAP[solver_name]

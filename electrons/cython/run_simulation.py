@@ -1,10 +1,10 @@
 from electrons.cython.pulsed_e_beam import pulsed_beam_PDEsolver
-from electrons.cython.continuous_e_beam import continous_beam_PDEsolver
+from electrons.cython.continuous_e_beam import continuous_beam_PDEsolver
 
 # from .continuous_e_beam import continuous_beam_PDEsolver
 import sys
 
-SOLVER_MAP = {"continous": "asd", "pulsed": pulsed_beam_PDEsolver}
+SOLVER_MAP = {"continous": continuous_beam_PDEsolver, "pulsed": pulsed_beam_PDEsolver}
 
 
 def run_simulation(
@@ -20,9 +20,13 @@ def run_simulation(
         "print_parameters": False,
     }
 
-    solver_name = sys.argv[1] if len(sys.argv) > 0 else ""
+    solver_name = sys.argv[1] if len(sys.argv) > 1 else ""
 
-    solver = SOLVER_MAP[solver_name] if solver_name in SOLVER_MAP.keys() else "asd"
+    solver = (
+        SOLVER_MAP[solver_name]
+        if solver_name in SOLVER_MAP.keys()
+        else continuous_beam_PDEsolver
+    )
 
     if solver_name not in SOLVER_MAP.keys():
         print(f'Invalid solver type "{solver_name}", defaulting to Continous solver.')
