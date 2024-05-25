@@ -32,26 +32,10 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
         )
 
     def calculate(self):
-        # refering to each param with a `self.` prefix makes the code less readable so we unpack them here
-        # this also prevents accidental mutations to the params - subsequent calls to `calculate` won't have side-effects
-        no_xy = self.no_xy
-        no_z_with_buffer = self.no_z_with_buffer
-        computation_time_steps = self.computation_time_steps
-        no_z_electrode = self.no_z_electrode
-        dt = self.dt
-        no_z = self.no_z
-        sx = self.sx
-        sy = self.sy
-        sz = self.sz
-        cx = self.cx
-        cy = self.cy
-        cz = self.cz
-        alpha = self.alpha
-
-        positive_array = np.zeros((no_xy, no_xy, no_z_with_buffer))
-        negative_array = np.zeros((no_xy, no_xy, no_z_with_buffer))
-        positive_array_temp = np.zeros((no_xy, no_xy, no_z_with_buffer))
-        negative_array_temp = np.zeros((no_xy, no_xy, no_z_with_buffer))
+        positive_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
+        negative_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
+        positive_array_temp = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
+        negative_array_temp = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
         no_recombined_charge_carriers = 0.0
         no_initialised_charge_carriers = 0.0
 
@@ -60,25 +44,31 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
         The tracks are distributed uniformly in time
         """
 
-        positive_temp_entry, negative_temp_entry, recomb_temp = 0.0
+        positive_temp_entry = negative_temp_entry = recomb_temp = 0.0
 
-        step_recombined, step_initialized
+        f_steps_list = np.zeros(self.computation_time_steps)
 
-        f_steps_list = np.zeros(computation_time_steps)
+        szcz_pos = self.sz + self.cz * (self.cz + 1.0) / 2.0
+        szcz_neg = self.sz + self.cz * (self.cz - 1.0) / 2.0
 
-        szcz_pos = sz + cz * (cz + 1.0) / 2.0
-        szcz_neg = sz + cz * (cz - 1.0) / 2.0
+        sycy_pos = self.sy + self.cy * (self.cy + 1.0) / 2.0
+        sycy_neg = self.sy + self.cy * (self.cy - 1.0) / 2.0
 
-        sycy_pos = sy + cy * (cy + 1.0) / 2.0
-        sycy_neg = sy + cy * (cy - 1.0) / 2.0
+        sxcx_pos = self.sx + self.cx * (self.cx + 1.0) / 2.0
+        sxcx_neg = self.sx + self.cx * (self.cx - 1.0) / 2.0
 
-        sxcx_pos = sx + cx * (cx + 1.0) / 2.0
-        sxcx_neg = sx + cx * (cx - 1.0) / 2.0
+        cxyzsyz = (
+            1.0
+            - self.cx * self.cx
+            - self.cy * self.cy
+            - self.cz * self.cz
+            - 2.0 * (self.sx + self.sy + self.sz)
+        )
 
         """
         Start the simulation by evolving the distribution one step at a time
         """
-        for time_step in range(computation_time_steps):
+        for time_step in range(self.computation_time_steps):
 
             step_recombined = 0.0
             step_initialized = 0.0
@@ -99,9 +89,9 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
             )
 
             # calculate the new densities and store them in temporary arrays
-            for i in range(1, no_xy - 1):
-                for j in range(1, no_xy - 1):
-                    for k in range(1, no_z_with_buffer - 1):
+            for i in range(1, self.no_xy - 1):
+                for j in range(1, self.no_xy - 1):
+                    for k in range(1, self.no_z_with_buffer - 1):
                         # using the Lax-Wendroff scheme
                         positive_temp_entry = szcz_pos * positive_array[i, j, k - 1]
                         positive_temp_entry += szcz_neg * positive_array[i, j, k + 1]
@@ -112,9 +102,7 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
                         positive_temp_entry += sxcx_pos * positive_array[i - 1, j, k]
                         positive_temp_entry += sxcx_neg * positive_array[i + 1, j, k]
 
-                        positive_temp_entry += (
-                            1.0 - cx * cx - cy * cy - cz * cz - 2.0 * (sx + sy + sz)
-                        ) * positive_array[i, j, k]
+                        positive_temp_entry += cxyzsyz * positive_array[i, j, k]
 
                         # same for the negative charge carriers
                         negative_temp_entry = szcz_pos * negative_array[i, j, k + 1]
@@ -126,20 +114,21 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
                         negative_temp_entry += sxcx_pos * negative_array[i + 1, j, k]
                         negative_temp_entry += sxcx_neg * negative_array[i - 1, j, k]
 
-                        negative_temp_entry += (
-                            1.0 - cx * cx - cy * cy - cz * cz - 2.0 * (sx + sy + sz)
-                        ) * negative_array[i, j, k]
+                        negative_temp_entry += cxyzsyz * negative_array[i, j, k]
 
                         # the recombination part
                         recomb_temp = (
-                            alpha
+                            self.alpha
                             * positive_array[i, j, k]
                             * negative_array[i, j, k]
-                            * dt
+                            * self.dt
                         )
                         positive_array_temp[i, j, k] = positive_temp_entry - recomb_temp
                         negative_array_temp[i, j, k] = negative_temp_entry - recomb_temp
-                        if k > no_z_electrode and k < (no_z + no_z_electrode):
+
+                        if k > self.no_z_electrode and k < (
+                            self.no_z + self.no_z_electrode
+                        ):
                             # sum over the recombination between the virtual electrodes
                             no_recombined_charge_carriers += recomb_temp
                             step_recombined += recomb_temp
@@ -149,9 +138,9 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
             ) / step_initialized
 
             # update the positive and negative arrays
-            for i in range(1, no_xy - 1):
-                for j in range(1, no_xy - 1):
-                    for k in range(1, no_z_with_buffer - 1):
+            for i in range(1, self.no_xy - 1):
+                for j in range(1, self.no_xy - 1):
+                    for k in range(1, self.no_z_with_buffer - 1):
                         positive_array[i, j, k] = positive_array_temp[i, j, k]
                         negative_array[i, j, k] = negative_array_temp[i, j, k]
 
@@ -164,4 +153,4 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
         # return charge_collection_df
         # ------------------------------------------
 
-        return f_steps_list
+        return f_steps_list[-1]
