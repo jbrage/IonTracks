@@ -20,7 +20,7 @@ def run_simulation(
         "print_parameters": False,
     }
 
-    solver_arg = sys.argv[1] if len(sys.argv) > 1 else "not_specified"
+    solver_arg = sys.argv[1] if len(sys.argv) > 1 else ""
 
     solver_type = solver_arg if solver_arg in SOLVER_MAP.keys() else "continous"
 
