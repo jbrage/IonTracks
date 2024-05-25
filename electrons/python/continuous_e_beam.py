@@ -9,26 +9,22 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
         self,
         positive_array,
         negative_array,
-        no_initialised_charge_carriers,
-        step_initialized,
     ):
         delta_border = 2
         electron_density_per_cm3_s = self.electron_density_per_cm3 * self.dt
+        initialised_charge_carriers = 0
 
         for k in range(self.no_z_electrode, self.no_z + self.no_z_electrode):
             for i in range(delta_border, self.no_xy - delta_border):
                 for j in range(delta_border, self.no_xy - delta_border):
-
                     positive_array[i, j, k] += electron_density_per_cm3_s
                     negative_array[i, j, k] += electron_density_per_cm3_s
-                    no_initialised_charge_carriers += electron_density_per_cm3_s
-                    step_initialized += electron_density_per_cm3_s
+                    initialised_charge_carriers += electron_density_per_cm3_s
 
         return (
             positive_array,
             negative_array,
-            no_initialised_charge_carriers,
-            step_initialized,
+            initialised_charge_carriers,
         )
 
     def calculate(self):
@@ -70,23 +66,20 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
         """
         for time_step in range(self.computation_time_steps):
 
-            step_recombined = 0.0
-            step_initialized = 0.0
-
             """
             Refill the array with the electron density each time step
             """
             (
                 positive_array,
                 negative_array,
-                no_initialised_charge_carriers,
-                step_initialized,
+                initialised_step,
             ) = self.get_electron_density_after_beam(
                 positive_array,
                 negative_array,
-                no_initialised_charge_carriers,
-                step_initialized,
+                time_step,
             )
+
+            no_initialised_charge_carriers += initialised_step
 
             # calculate the new densities and store them in temporary arrays
             for i in range(1, self.no_xy - 1):
@@ -131,11 +124,10 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
                         ):
                             # sum over the recombination between the virtual electrodes
                             no_recombined_charge_carriers += recomb_temp
-                            step_recombined += recomb_temp
 
             f_steps_list[time_step] = (
-                step_initialized - step_recombined
-            ) / step_initialized
+                no_initialised_charge_carriers - no_recombined_charge_carriers
+            ) / no_initialised_charge_carriers
 
             # update the positive and negative arrays
             for i in range(1, self.no_xy - 1):
@@ -144,13 +136,4 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
                         positive_array[i, j, k] = positive_array_temp[i, j, k]
                         negative_array[i, j, k] = negative_array_temp[i, j, k]
 
-        # ---- not necesarily sure what this is ----
-        # charge_collection_df = pd.DataFrame()
-        # charge_collection_df["f"] = f_steps_list
-        # charge_collection_df["ks"] = 1 / f_steps_list
-        # charge_collection_df["time_s"] = np.arange(0, len(f_steps_list) * dt, dt)
-        # charge_collection_df["time_us"] = charge_collection_df["time_s"] * 1e6
-        # return charge_collection_df
-        # ------------------------------------------
-
-        return f_steps_list[-1]
+        return f_steps_list

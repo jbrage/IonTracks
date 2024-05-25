@@ -6,18 +6,21 @@ from generic_electron_solver import GenericElectronSolver
 
 class PulsedBeamPDEsolver(GenericElectronSolver):
     def get_electron_density_after_beam(
-        self, positive_array, negative_array, no_initialised_charge_carriers
+        self, positive_array, negative_array, time_step
     ):
         delta_border = 2
+        initialised_charge_carriers = 0
 
-        for k in range(self.no_z_electrode, self.no_z + self.no_z_electrode):
-            for i in range(delta_border, self.no_xy - delta_border):
-                for j in range(delta_border, self.no_xy - delta_border):
-                    positive_array[i, j, k] += self.electron_density_per_cm3
-                    negative_array[i, j, k] += self.electron_density_per_cm3
-                    no_initialised_charge_carriers += self.electron_density_per_cm3
+        # in the pulsed scenario there is only one beam at time 0
+        if time_step == 0:
+            for k in range(self.no_z_electrode, self.no_z + self.no_z_electrode):
+                for i in range(delta_border, self.no_xy - delta_border):
+                    for j in range(delta_border, self.no_xy - delta_border):
+                        positive_array[i, j, k] += self.electron_density_per_cm3
+                        negative_array[i, j, k] += self.electron_density_per_cm3
+                        initialised_charge_carriers += self.electron_density_per_cm3
 
-        return positive_array, negative_array, no_initialised_charge_carriers
+        return positive_array, negative_array, initialised_charge_carriers
 
     def calculate(self):
         positive_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
@@ -32,16 +35,13 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
         The tracks are distributed uniformly in time
         """
 
-        f = positive_temp_entry = negative_temp_entry = recomb_temp = 0.0
+        positive_temp_entry = negative_temp_entry = recomb_temp = 0.0
+
+        f_steps_list = np.zeros(self.computation_time_steps)
 
         """
         Fill the array with the electron density according to the pulesed beam
         """
-        positive_array, negative_array, no_initialised_charge_carriers = (
-            self.get_electron_density_after_beam(
-                positive_array, negative_array, no_initialised_charge_carriers
-            )
-        )
 
         szcz_pos = self.sz + self.cz * (self.cz + 1.0) / 2.0
         szcz_neg = self.sz + self.cz * (self.cz - 1.0) / 2.0
@@ -63,7 +63,20 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
         """
         Start the simulation by evovling the distribution one step at a time
         """
-        for _ in range(self.computation_time_steps):
+
+        for time_step in range(self.computation_time_steps):
+            (
+                positive_array,
+                negative_array,
+                initialised_step,
+            ) = self.get_electron_density_after_beam(
+                positive_array,
+                negative_array,
+                time_step,
+            )
+
+            no_initialised_charge_carriers += initialised_step
+
             # calculate the new densities and store them in temporary arrays
             for i in range(1, self.no_xy - 1):
                 for j in range(1, self.no_xy - 1):
@@ -108,6 +121,10 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
                             # sum over the recombination between the virtual electrodes
                             no_recombined_charge_carriers += recomb_temp
 
+            f_steps_list[time_step] = (
+                no_initialised_charge_carriers - no_recombined_charge_carriers
+            ) / no_initialised_charge_carriers
+
             # update the positive and negative arrays
             for i in range(1, self.no_xy - 1):
                 for j in range(1, self.no_xy - 1):
@@ -115,9 +132,4 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
                         positive_array[i, j, k] = positive_array_temp[i, j, k]
                         negative_array[i, j, k] = negative_array_temp[i, j, k]
 
-        # return the collection efficiency
-        f = (
-            no_initialised_charge_carriers - no_recombined_charge_carriers
-        ) / no_initialised_charge_carriers
-
-        return f
+        return f_steps_list
