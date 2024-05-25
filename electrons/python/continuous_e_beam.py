@@ -9,6 +9,7 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
         self,
         positive_array,
         negative_array,
+        time_step,
     ):
         delta_border = 2
         electron_density_per_cm3_s = self.electron_density_per_cm3 * self.dt
@@ -21,11 +22,7 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
                     negative_array[i, j, k] += electron_density_per_cm3_s
                     initialised_charge_carriers += electron_density_per_cm3_s
 
-        return (
-            positive_array,
-            negative_array,
-            initialised_charge_carriers,
-        )
+        return positive_array, negative_array, initialised_charge_carriers
 
     def calculate(self):
         positive_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
@@ -36,7 +33,7 @@ class ContinousBeamPDEsolver(GenericElectronSolver):
         no_initialised_charge_carriers = 0.0
 
         """
-        Create an array which include the number of track to be inserted for each time step
+        Create an array which includes the number of track to be inserted for each time step
         The tracks are distributed uniformly in time
         """
 

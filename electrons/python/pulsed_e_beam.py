@@ -31,17 +31,13 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
         no_initialised_charge_carriers = 0.0
 
         """
-        Create an array which include the number of track to be inserted for each time step
+        Create an array which includes the number of track to be inserted for each time step
         The tracks are distributed uniformly in time
         """
 
         positive_temp_entry = negative_temp_entry = recomb_temp = 0.0
 
         f_steps_list = np.zeros(self.computation_time_steps)
-
-        """
-        Fill the array with the electron density according to the pulesed beam
-        """
 
         szcz_pos = self.sz + self.cz * (self.cz + 1.0) / 2.0
         szcz_neg = self.sz + self.cz * (self.cz - 1.0) / 2.0
@@ -61,10 +57,14 @@ class PulsedBeamPDEsolver(GenericElectronSolver):
         )
 
         """
-        Start the simulation by evovling the distribution one step at a time
+        Start the simulation by evolving the distribution one step at a time
         """
 
         for time_step in range(self.computation_time_steps):
+
+            """
+            Refill the array with the electron density each time step
+            """
             (
                 positive_array,
                 negative_array,
