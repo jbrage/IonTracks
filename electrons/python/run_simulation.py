@@ -1,15 +1,8 @@
 from continuous_e_beam import ContinousBeamPDEsolver
 from pulsed_e_beam import PulsedBeamPDEsolver
+import sys
 
-
-def get_solver(solver_name: str):
-    if solver_name == "continous":
-        return ContinousBeamPDEsolver
-
-    if solver_name == "pulsed":
-        return PulsedBeamPDEsolver
-
-    raise TypeError(f"Invalid electron solver name {solver_name}")
+SOLVER_MAP = {"continous": ContinousBeamPDEsolver, "pulsed": PulsedBeamPDEsolver}
 
 
 def run_simulation(
@@ -17,15 +10,22 @@ def run_simulation(
     electrode_gap=0.1,
     electron_density_per_cm3=1e9,
 ):
-    solver_name = "pulsed"
+    solver_name = sys.argv[1] if len(sys.argv) > 0 else ""
 
-    Solver = get_solver(solver_name)
+    Solver = (
+        SOLVER_MAP[solver_name]
+        if solver_name in SOLVER_MAP.keys()
+        else ContinousBeamPDEsolver
+    )
+
+    if solver_name not in SOLVER_MAP.keys():
+        print(f'Invalid solver type "{solver_name}", defaulting to Continous solver.')
 
     solver = Solver(
         electron_density_per_cm3=electron_density_per_cm3,
         voltage_V=voltage_V,
         electrode_gap=electrode_gap,
-        unit_length_cm=4e-4,
+        unit_length_cm=5e-4,
     )
 
     return solver.calculate()

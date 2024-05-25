@@ -1,4 +1,10 @@
 from electrons.cython.pulsed_e_beam import pulsed_beam_PDEsolver
+from electrons.cython.continuous_e_beam import continous_beam_PDEsolver
+
+# from .continuous_e_beam import continuous_beam_PDEsolver
+import sys
+
+SOLVER_MAP = {"continous": "asd", "pulsed": pulsed_beam_PDEsolver}
 
 
 def run_simulation(
@@ -14,10 +20,17 @@ def run_simulation(
         "print_parameters": False,
     }
 
-    # return the collection efficiency
-    f = pulsed_beam_PDEsolver(parameters)
+    solver_name = sys.argv[1] if len(sys.argv) > 0 else ""
 
-    return 1 / f
+    solver = SOLVER_MAP[solver_name] if solver_name in SOLVER_MAP.keys() else "asd"
+
+    if solver_name not in SOLVER_MAP.keys():
+        print(f'Invalid solver type "{solver_name}", defaulting to Continous solver.')
+
+    # return the collection efficiency
+    f = solver(parameters)
+
+    return f
 
 
 if __name__ == "__main__":
@@ -28,4 +41,4 @@ if __name__ == "__main__":
         electrode_gap=0.1,
     )
 
-    print(f"calculated f is {result}")
+    print("calculated f is", result)
