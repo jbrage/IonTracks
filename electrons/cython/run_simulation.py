@@ -20,19 +20,22 @@ def run_simulation(
         "print_parameters": False,
     }
 
-    solver_name = sys.argv[1] if len(sys.argv) > 1 else ""
+    solver_arg = sys.argv[1] if len(sys.argv) > 1 else "not_specified"
 
-    solver = (
-        SOLVER_MAP[solver_name]
-        if solver_name in SOLVER_MAP.keys()
-        else continuous_beam_PDEsolver
-    )
+    solver_type = solver_arg if solver_arg in SOLVER_MAP.keys() else "continous"
 
-    if solver_name not in SOLVER_MAP.keys():
-        print(f'Invalid solver type "{solver_name}", defaulting to Continous solver.')
+    solver = SOLVER_MAP[solver_type]
+
+    if solver_type not in SOLVER_MAP.keys():
+        print(f'Invalid solver type "{solver_type}", defaulting to Continous solver.')
 
     # return the collection efficiency
-    f = solver(parameters)
+    result = solver(parameters)
+
+    if solver_type == "continous":
+        f = result[1]["f"]
+    else:
+        f = result
 
     return f
 
