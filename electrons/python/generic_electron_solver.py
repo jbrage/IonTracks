@@ -6,13 +6,42 @@ from typing import Tuple
 import numpy as np
 
 
+def von_neumann_expression(
+    dt, ion_diff, grid_spacing_cm, ion_mobility, Efield_V_cm
+) -> None:
+    """
+    Finds a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
+    decreases and eventually damps out
+    """
+    von_neumann_expression = False
+
+    while not von_neumann_expression:
+        dt /= 1.01
+        # as defined in the Deghan (2004) paper
+        # sx = ion_diff*dt/(self.grid_spacing_cm**2)
+        # sy = ion_diff*dt/(self.grid_spacing_cm**2)
+        sx = sy = 0.0  # uniform charge => no gradient driven diffusion in the xy plane
+
+        sz = ion_diff * dt / (grid_spacing_cm**2)
+        cx = cy = 0.0
+        cz = ion_mobility * Efield_V_cm * dt / grid_spacing_cm
+        # check von Neumann's criterion
+        criterion_1 = 2 * (sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1
+
+        criterion_2 = cx**2 * cy**2 * cz**2 <= 8 * sx * sy * sz
+
+        von_neumann_expression = criterion_1 and criterion_2
+
+    return dt, sx, sy, sz, cx, cy, cz
+
+
 @dataclass
 class GenericElectronSolver(ABC):
     # Simulation parameters
     electron_density_per_cm3: float  # fluence-rate [/cm^2/s]
     voltage_V: float  # [V/cm] magnitude of the electric field
     electrode_gap: float  # [cm] # electrode gap
-    unit_length_cm: float
+    grid_spacing_cm: float
     ion_mobility: float = 1.73  # cm s^-1 V^-1, averaged for positive and negative ions
     ion_diff: float = 3.7e-2  # cm^2/s, averaged for positive and negative ions
     alpha: float = 1.60e-6  # cm^3/s, recombination constant
@@ -28,7 +57,7 @@ class GenericElectronSolver(ABC):
     def no_xy(self) -> int:
         """Number of voxels om the xy-directions"""
 
-        no_xy = int(2 * self.r_cm / self.unit_length_cm)
+        no_xy = int(2 * self.r_cm / self.grid_spacing_cm)
         no_xy += 2 * self.buffer_radius
         return no_xy
 
@@ -36,7 +65,7 @@ class GenericElectronSolver(ABC):
     def no_z(self) -> int:
         """Number of voxels om the z-direction"""
 
-        return int(self.electrode_gap / self.unit_length_cm)
+        return int(self.electrode_gap / self.grid_spacing_cm)
 
     @property
     def no_z_with_buffer(self) -> int:
@@ -60,38 +89,9 @@ class GenericElectronSolver(ABC):
     def computation_time_steps(self) -> int:
         return self.separation_time_steps * 3
 
-    def von_neumann_expression(self) -> None:
-        """
-        Finds a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
-        decreases and eventually damps out
-        """
-        von_neumann_expression = False
-
-        while not von_neumann_expression:
-            self.dt /= 1.01
-            # as defined in the Deghan (2004) paper
-            # sx = ion_diff*dt/(self.unit_length_cm**2)
-            # sy = ion_diff*dt/(self.unit_length_cm**2)
-            self.sx = self.sy = (
-                0.0  # uniform charge => no gradient driven diffusion in the xy plane
-            )
-
-            self.sz = self.ion_diff * self.dt / (self.unit_length_cm**2)
-            self.cx = self.cy = 0.0
-            self.cz = (
-                self.ion_mobility * self.Efield_V_cm * self.dt / self.unit_length_cm
-            )
-            # check von Neumann's criterion
-            criterion_1 = (
-                2 * (self.sx + self.sy + self.sz) + self.cx**2 + self.cy**2 + self.cz**2
-                <= 1
-            )
-
-            criterion_2 = (
-                self.cx**2 * self.cy**2 * self.cz**2 <= 8 * self.sx * self.sy * self.sz
-            )
-
-            von_neumann_expression = criterion_1 and criterion_2
+    @property
+    def delta_border(self) -> int:
+        return 2
 
     def __post_init__(
         self,
@@ -103,13 +103,34 @@ class GenericElectronSolver(ABC):
                 % (self.no_xy * self.no_xy * self.no_z_with_buffer)
             )
 
-        self.von_neumann_expression()
+        self.dt, self.sx, self.sy, self.sz, self.cx, self.cy, self.cz = (
+            von_neumann_expression(
+                self.dt,
+                self.ion_diff,
+                self.grid_spacing_cm,
+                self.ion_mobility,
+                self.Efield_V_cm,
+            )
+        )
 
     @abstractmethod
-    def get_electron_density_after_beam(
-        self, positive_array: NDArray, negative_array: NDArray, time_step: int
-    ) -> Tuple[NDArray, NDArray, float]:
+    def should_simulate_beam_for_time_step(self, time_step: int) -> bool:
         pass
+
+    @abstractmethod
+    def update_electron_density_arrays_after_beam(
+        self, positive_array: NDArray, negative_array: NDArray
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def get_initialised_charge_carriers_after_beam() -> float:
+        pass
+
+    def simulate_beam(self, positive_array: NDArray, negative_array: NDArray):
+        self.update_electron_density_arrays_after_beam(positive_array, negative_array)
+
+        return self.get_initialised_charge_carriers_after_beam()
 
     def calculate(self):
         positive_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
@@ -154,17 +175,15 @@ class GenericElectronSolver(ABC):
             """
             Refill the array with the electron density each time step
             """
-            (
-                positive_array,
-                negative_array,
-                initialised_step,
-            ) = self.get_electron_density_after_beam(
-                positive_array,
-                negative_array,
-                time_step,
-            )
+            if self.should_simulate_beam_for_time_step(time_step):
+                no_initialised_step = self.simulate_beam(
+                    positive_array,
+                    negative_array,
+                )
+            else:
+                no_initialised_step = 0.0
 
-            no_initialised_charge_carriers += initialised_step
+            no_initialised_charge_carriers += no_initialised_step
 
             # calculate the new densities and store them in temporary arrays
             for i in range(1, self.no_xy - 1):
@@ -213,12 +232,7 @@ class GenericElectronSolver(ABC):
             f_steps_list[time_step] = (
                 no_initialised_charge_carriers - no_recombined_charge_carriers
             ) / no_initialised_charge_carriers
-
-            # update the positive and negative arrays
-            for i in range(1, self.no_xy - 1):
-                for j in range(1, self.no_xy - 1):
-                    for k in range(1, self.no_z_with_buffer - 1):
-                        positive_array[i, j, k] = positive_array_temp[i, j, k]
-                        negative_array[i, j, k] = negative_array_temp[i, j, k]
+            np.copyto(positive_array, positive_array_temp)
+            np.copyto(negative_array, negative_array_temp)
 
         return f_steps_list
