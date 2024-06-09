@@ -21,13 +21,18 @@ def calculate_expected_df():
 
 def configure_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--override', type=bool, default=False, help='Override previously generated reference data')
+    parser.add_argument(
+        "--override",
+        type=bool,
+        default=False,
+        help="Override previously generated reference data",
+    )
     return parser
 
 
 def results_file_exist():
     try:
-        np.load(Path(ABS_PATH,'expected.npy'), allow_pickle=True)
+        np.load(Path(ABS_PATH, "expected.npy"), allow_pickle=True)
         return True
     except FileNotFoundError:
         return False
@@ -40,11 +45,11 @@ def main():
     if not args.override and results_file_exist():
         return
 
-    Path(ABS_PATH,'expected.npy').unlink(missing_ok=True)
+    Path(ABS_PATH, "expected.npy").unlink(missing_ok=True)
 
-    np.save(Path(ABS_PATH, 'expected.npy'), calculate_expected_df().to_records())
+    np.save(Path(ABS_PATH, "expected.npy"), calculate_expected_df().to_records())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
     sys.exit(0)
