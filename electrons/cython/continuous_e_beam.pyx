@@ -1,15 +1,23 @@
 from __future__ import division
+
+from copy import deepcopy
+
 import numpy as np
 import numpy.random as rnd
-from copy import deepcopy
+
 cimport numpy as np
+
 import pandas as pd
 
-from libc.math cimport exp, sqrt, M_PI as pi, log, cos, sin
+from libc.math cimport M_PI as pi
+from libc.math cimport cos, exp, log, sin, sqrt
+
 DTYPE = np.double
 ctypedef np.double_t DTYPE_t
 
 cimport cython
+
+
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
 @cython.cdivision(True) # turn off checks for zero division
@@ -100,8 +108,8 @@ def continuous_beam_PDEsolver(dict parameter_dic):
     cdef double MINVAL = 0.
     cdef double MAXVAL = 0.
     if show_plot:
-        import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
+        import matplotlib.pyplot as plt
 
         plt.close('all')
         fig = plt.figure()

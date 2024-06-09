@@ -1,7 +1,7 @@
-from electrons.cython.pulsed_e_beam import pulsed_beam_PDEsolver
-from electrons.cython.continuous_e_beam import continuous_beam_PDEsolver
-
 import argparse
+
+from electrons.cython.continuous_e_beam import continuous_beam_PDEsolver
+from electrons.cython.pulsed_e_beam import pulsed_beam_PDEsolver
 
 SOLVER_MAP = {"continous": continuous_beam_PDEsolver, "pulsed": pulsed_beam_PDEsolver}
 

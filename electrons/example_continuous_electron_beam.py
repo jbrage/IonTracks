@@ -1,10 +1,12 @@
-from electrons.cython.continuous_e_beam import continuous_beam_PDEsolver
-from Boag_theory import Boag_continuous, e_charge
+import itertools
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import itertools
+from Boag_theory import Boag_continuous, e_charge
+
+from electrons.cython.continuous_e_beam import continuous_beam_PDEsolver
 
 
 def IonTracks_continuous(

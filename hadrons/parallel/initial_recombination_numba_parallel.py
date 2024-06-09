@@ -1,12 +1,13 @@
-import numpy as np
 import time
 from math import exp, sqrt
+
+import numpy as np
 from numba import njit, prange
-from ..geiss_utils import Geiss_RRD_cm
-from ..python.initial_recombination import (
-    single_track_PDEsolver as single_track_PDEsolver_base,
-)
+
 from ..common_properties import alpha, no_z_electrode
+from ..geiss_utils import Geiss_RRD_cm
+from ..python.initial_recombination import \
+    single_track_PDEsolver as single_track_PDEsolver_base
 
 # jitted functions defined outside the solver class as 'self' is not recogized as a supported type
 
