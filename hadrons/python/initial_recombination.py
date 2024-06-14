@@ -3,9 +3,16 @@ from math import cos, exp, log, pi, sin, sqrt
 
 import numpy as np
 
-from ..common_properties import (W, air_density_g_cm3, alpha, ion_diff,
-                                 ion_mobility, n_track_radii, no_z_electrode,
-                                 water_density_g_cm3)
+from ..common_properties import (
+    W,
+    air_density_g_cm3,
+    alpha,
+    ion_diff,
+    ion_mobility,
+    n_track_radii,
+    no_z_electrode,
+    water_density_g_cm3,
+)
 from ..geiss_utils import Geiss_r_max, Geiss_RRD_cm
 
 
