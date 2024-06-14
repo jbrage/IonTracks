@@ -73,7 +73,7 @@ else:
 install_requires = [
     "Cython>=3.0.10",
     "numpy>=1.24.4",
-    "scipy>=1.13.1",
+    "scipy>=1.10.1",
     "matplotlib>=3.9.0",
     "mpmath>=1.3.0",
     "pandas>=2.2.2",
