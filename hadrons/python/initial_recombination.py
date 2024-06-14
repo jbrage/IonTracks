@@ -1,5 +1,4 @@
 import numpy as np
-import numpy.random as rnd
 import time
 from math import exp, sqrt, pi, log, cos, sin
 from ..geiss_utils import Geiss_r_max, Geiss_RRD_cm
@@ -127,9 +126,7 @@ class single_track_PDEsolver:
         if self.RDD_model == "Gauss":
 
             def RDD_function(r_cm):
-                return self.Gaussian_factor * exp(
-                    -(r_cm**2) / self.track_radius_cm**2
-                )
+                return self.Gaussian_factor * exp(-(r_cm**2) / self.track_radius_cm**2)
 
         elif self.RDD_model == "Geiss":
 
