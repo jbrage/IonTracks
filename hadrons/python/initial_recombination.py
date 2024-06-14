@@ -1,17 +1,19 @@
-import numpy as np
 import time
-from math import exp, sqrt, pi, log, cos, sin
-from ..geiss_utils import Geiss_r_max, Geiss_RRD_cm
+from math import cos, exp, log, pi, sin, sqrt
+
+import numpy as np
+
 from ..common_properties import (
     W,
-    ion_mobility,
-    ion_diff,
+    air_density_g_cm3,
     alpha,
+    ion_diff,
+    ion_mobility,
     n_track_radii,
     no_z_electrode,
-    air_density_g_cm3,
     water_density_g_cm3,
 )
+from ..geiss_utils import Geiss_r_max, Geiss_RRD_cm
 
 
 class single_track_PDEsolver:
@@ -65,8 +67,8 @@ class single_track_PDEsolver:
         von_neumann_expression = False
         Efield = voltage_V / electrode_gap_cm
 
-        # find a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
-        # decreases and eventually damps out
+        # find a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not
+        # increase but decreases and eventually damps out
         while not von_neumann_expression:
             dt /= 1.01
             # as defined in the Deghan (2004) paper

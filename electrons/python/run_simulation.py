@@ -1,7 +1,7 @@
+import argparse
+
 from continuous_e_beam import ContinousBeamPDEsolver
 from pulsed_e_beam import PulsedBeamPDEsolver
-import sys
-import argparse
 
 SOLVER_MAP = {"continous": ContinousBeamPDEsolver, "pulsed": PulsedBeamPDEsolver}
 

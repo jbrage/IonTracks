@@ -1,9 +1,10 @@
-import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-from functions import Jaffe_theory, ks_initial_IonTracks
 import itertools
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from functions import Jaffe_theory, ks_initial_IonTracks
 
 # set parameters
 data_dict = dict(

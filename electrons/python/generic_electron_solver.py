@@ -1,9 +1,10 @@
 from __future__ import division
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from numpy.typing import NDArray
-from typing import Tuple
+
 import numpy as np
+from numpy.typing import NDArray
 
 
 def von_neumann_expression(

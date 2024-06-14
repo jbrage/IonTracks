@@ -1,11 +1,12 @@
-import numpy as np
-from electrons.cython.pulsed_e_beam import pulsed_beam_PDEsolver
-import matplotlib.colors as colors
+import itertools
+
 import matplotlib.pyplot as plt
-from Boag_theory import Boag_pulsed, e_charge
+import numpy as np
 import pandas as pd
 import seaborn as sns
-import itertools
+from Boag_theory import Boag_pulsed, e_charge
+
+from electrons.cython.pulsed_e_beam import pulsed_beam_PDEsolver
 
 
 def IonTracks_pulsed(

@@ -1,15 +1,21 @@
 from __future__ import division
-import numpy as np
-import numpy.random as rnd
+
 import time
 from copy import deepcopy
+
+import numpy as np
+import numpy.random as rnd
+
 cimport numpy as np
-from libc.math cimport exp, sqrt, M_PI as pi, log, cos, sin
+from libc.math cimport M_PI as pi
+from libc.math cimport cos, exp, log, sin, sqrt
 
 DTYPE = np.double
 ctypedef np.double_t DTYPE_t
 
 cimport cython
+
+
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
 @cython.cdivision(True) # turn off checks for zero division
@@ -101,8 +107,8 @@ def single_track_PDEsolver(double LET_keV_um,
 
     # plot the calculation?
     if SHOW_PLOT:
-        import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
+        import matplotlib.pyplot as plt
 
         plt.close('all')
         fig = plt.figure()
