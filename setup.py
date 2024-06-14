@@ -1,5 +1,6 @@
 import os
-from setuptools import setup, find_packages, Extension
+
+from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext as _build_ext
 
 try:
@@ -69,8 +70,19 @@ if CYTHONIZE:
 else:
     extensions = no_cythonize(extensions)
 
-with open("requirements.txt") as fp:
-    install_requires = fp.read().strip().split("\n")
+install_requires = [
+    "Cython>=3.0.10",
+    "numpy>=1.26.4",
+    "scipy>=1.13.1",
+    "matplotlib>=3.9.0",
+    "mpmath>=1.3.0",
+    "pandas>=2.2.2",
+    "seaborn>=0.13.2",
+    "numba>=0.59.1",
+    "isort>=5.13.2",
+    "flake8>=7.0.0",
+    "flake8-isort>=6.1.1",
+]
 
 setup(
     cmdclass={"build_ext": build_ext},
