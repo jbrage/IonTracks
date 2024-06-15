@@ -1,0 +1,4 @@
+from electrons.common.continous_e_beam import get_continous_beam_pde_solver
+from electrons.numba.generic_electron_solver import NumbaGenericElectronSolver
+
+NumbaContinousBeamPDEsolver = get_continous_beam_pde_solver(NumbaGenericElectronSolver)
