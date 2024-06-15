@@ -2,29 +2,37 @@ from __future__ import division
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Tuple
 
 import numpy as np
 from numpy.typing import NDArray
 
 
 def von_neumann_expression(
-    dt, ion_diff, grid_spacing_cm, ion_mobility, Efield_V_cm
-) -> None:
+    dt: float,
+    ion_diff: float,
+    grid_spacing_cm: float,
+    ion_mobility: float,
+    Efield_V_cm: float,
+) -> Tuple[float, float, float, float, float, float, float]:
     """
     Finds a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
     decreases and eventually damps out
     """
     von_neumann_expression = False
 
+    # initialize the coefficients
+    sx = sy = sz = cx = cy = cz = 0.0
+
     while not von_neumann_expression:
         dt /= 1.01
         # as defined in the Deghan (2004) paper
+
+        # we leave the coeficents as 0 in the xy plane
         # sx = ion_diff*dt/(self.grid_spacing_cm**2)
         # sy = ion_diff*dt/(self.grid_spacing_cm**2)
-        sx = sy = 0.0  # uniform charge => no gradient driven diffusion in the xy plane
 
         sz = ion_diff * dt / (grid_spacing_cm**2)
-        cx = cy = 0.0
         cz = ion_mobility * Efield_V_cm * dt / grid_spacing_cm
         # check von Neumann's criterion
         criterion_1 = 2 * (sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1
@@ -233,7 +241,7 @@ class GenericElectronSolver(ABC):
             f_steps_list[time_step] = (
                 no_initialised_charge_carriers - no_recombined_charge_carriers
             ) / no_initialised_charge_carriers
-            np.copyto(positive_array, positive_array_temp)
-            np.copyto(negative_array, negative_array_temp)
+            positive_array[:] = positive_array_temp
+            negative_array[:] = negative_array_temp
 
         return f_steps_list
