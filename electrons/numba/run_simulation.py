@@ -1,7 +1,11 @@
 import argparse
 
-from electrons.numba.continous_e_beam import ContinousBeamPDEsolver
-from electrons.numba.pulsed_e_beam import PulsedBeamPDEsolver
+from electrons.numba.continous_e_beam import (
+    NumbaContinousBeamPDEsolver as ContinousBeamPDEsolver,
+)
+from electrons.numba.pulsed_e_beam import (
+    NumbaPulsedBeamPDEsolver as PulsedBeamPDEsolver,
+)
 
 SOLVER_MAP = {"continous": ContinousBeamPDEsolver, "pulsed": PulsedBeamPDEsolver}
 
