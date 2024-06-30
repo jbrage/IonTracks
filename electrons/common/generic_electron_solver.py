@@ -14,7 +14,7 @@ def von_neumann_expression(
     grid_spacing_cm: float,
     ion_mobility: float,
     Efield_V_cm: float,
-) -> Tuple[float, float, float, float, float, float, float]:
+) -> Tuple[float, Tuple[float, float, float], Tuple[float, float, float]]:
     """
     Finds a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
     decreases and eventually damps out
@@ -41,7 +41,7 @@ def von_neumann_expression(
 
         von_neumann_expression = criterion_1 and criterion_2
 
-    return dt, sx, sy, sz, cx, cy, cz
+    return dt, [sx, sy, sz], [cx, cy, cz]
 
 
 @dataclass
@@ -112,14 +112,12 @@ class GenericElectronSolver(ABC):
                 % (self.no_xy * self.no_xy * self.no_z_with_buffer)
             )
 
-        self.dt, self.sx, self.sy, self.sz, self.cx, self.cy, self.cz = (
-            von_neumann_expression(
-                self.dt,
-                self.ion_diff,
-                self.grid_spacing_cm,
-                self.ion_mobility,
-                self.Efield_V_cm,
-            )
+        self.dt, self.s, self.c = von_neumann_expression(
+            self.dt,
+            self.ion_diff,
+            self.grid_spacing_cm,
+            self.ion_mobility,
+            self.Efield_V_cm,
         )
 
     @abstractmethod
@@ -158,21 +156,24 @@ class GenericElectronSolver(ABC):
 
         f_steps_list = np.zeros(self.computation_time_steps)
 
-        szcz_pos = self.sz + self.cz * (self.cz + 1.0) / 2.0
-        szcz_neg = self.sz + self.cz * (self.cz - 1.0) / 2.0
+        sc_pos = [
+            self.s[0] + self.c[0] * (self.c[0] + 1.0) / 2.0,
+            self.s[1] + self.c[1] * (self.c[1] + 1.0) / 2.0,
+            self.s[2] + self.c[2] * (self.c[2] + 1.0) / 2.0,
+        ]
 
-        sycy_pos = self.sy + self.cy * (self.cy + 1.0) / 2.0
-        sycy_neg = self.sy + self.cy * (self.cy - 1.0) / 2.0
-
-        sxcx_pos = self.sx + self.cx * (self.cx + 1.0) / 2.0
-        sxcx_neg = self.sx + self.cx * (self.cx - 1.0) / 2.0
+        sc_neg = [
+            self.s[0] + self.c[0] * (self.c[0] - 1.0) / 2.0,
+            self.s[1] + self.c[1] * (self.c[1] - 1.0) / 2.0,
+            self.s[2] + self.c[2] * (self.c[2] - 1.0) / 2.0,
+        ]
 
         cxyzsyz = (
             1.0
-            - self.cx * self.cx
-            - self.cy * self.cy
-            - self.cz * self.cz
-            - 2.0 * (self.sx + self.sy + self.sz)
+            - self.c[0] * self.c[0]
+            - self.c[1] * self.c[1]
+            - self.c[2] * self.c[2]
+            - 2.0 * (self.s[0] + self.s[1] + self.s[2])
         )
 
         """
@@ -199,26 +200,27 @@ class GenericElectronSolver(ABC):
                 for j in range(1, self.no_xy - 1):
                     for k in range(1, self.no_z_with_buffer - 1):
                         # using the Lax-Wendroff scheme
-                        positive_temp_entry = szcz_pos * positive_array[i, j, k - 1]
-                        positive_temp_entry += szcz_neg * positive_array[i, j, k + 1]
+                        positive_temp_entry = 0
 
-                        positive_temp_entry += sycy_pos * positive_array[i, j - 1, k]
-                        positive_temp_entry += sycy_neg * positive_array[i, j + 1, k]
+                        positive_temp_entry += sc_pos[0] * positive_array[i - 1, j, k]
+                        positive_temp_entry += sc_pos[1] * positive_array[i, j - 1, k]
+                        positive_temp_entry += sc_pos[2] * positive_array[i, j, k - 1]
 
-                        positive_temp_entry += sxcx_pos * positive_array[i - 1, j, k]
-                        positive_temp_entry += sxcx_neg * positive_array[i + 1, j, k]
+                        positive_temp_entry += sc_neg[0] * positive_array[i + 1, j, k]
+                        positive_temp_entry += sc_neg[1] * positive_array[i, j + 1, k]
+                        positive_temp_entry += sc_neg[2] * positive_array[i, j, k + 1]
 
                         positive_temp_entry += cxyzsyz * positive_array[i, j, k]
 
                         # same for the negative charge carriers
-                        negative_temp_entry = szcz_pos * negative_array[i, j, k + 1]
-                        negative_temp_entry += szcz_neg * negative_array[i, j, k - 1]
+                        positive_temp_entry = 0
+                        negative_temp_entry += sc_pos[0] * negative_array[i + 1, j, k]
+                        negative_temp_entry += sc_pos[1] * negative_array[i, j + 1, k]
+                        negative_temp_entry += sc_pos[2] * negative_array[i, j, k + 1]
 
-                        negative_temp_entry += sycy_pos * negative_array[i, j + 1, k]
-                        negative_temp_entry += sycy_neg * negative_array[i, j - 1, k]
-
-                        negative_temp_entry += sxcx_pos * negative_array[i + 1, j, k]
-                        negative_temp_entry += sxcx_neg * negative_array[i - 1, j, k]
+                        negative_temp_entry += sc_neg[0] * negative_array[i - 1, j, k]
+                        negative_temp_entry += sc_neg[1] * negative_array[i, j - 1, k]
+                        negative_temp_entry += sc_neg[2] * negative_array[i, j, k - 1]
 
                         negative_temp_entry += cxyzsyz * negative_array[i, j, k]
 

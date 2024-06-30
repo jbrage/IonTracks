@@ -11,18 +11,14 @@ from electrons.common.generic_electron_solver import (
 
 
 @njit
-def jited_calculate(
+def numba_calculate(
     computation_time_steps: int,
     should_simulate_beam_for_time_step: Callable[[int], bool],
     simulate_beam: Callable[[NDArray, NDArray], float],
     no_xy: int,
     no_z_with_buffer: int,
-    sx: float,
-    sy: float,
-    sz: float,
-    cx: float,
-    cy: float,
-    cz: float,
+    s: Tuple[float, float, float],
+    c: Tuple[float, float, float],
     alpha: float,
     dt: float,
     no_z: int,
@@ -37,16 +33,16 @@ def jited_calculate(
 
     f_steps_list = np.zeros(computation_time_steps)
 
-    szcz_pos = sz + cz * (cz + 1.0) / 2.0
-    szcz_neg = sz + cz * (cz - 1.0) / 2.0
+    szcz_pos = s[2] + c[2] * (c[2] + 1.0) / 2.0
+    szcz_neg = s[2] + c[2] * (c[2] - 1.0) / 2.0
 
-    sycy_pos = sy + cy * (cy + 1.0) / 2.0
-    sycy_neg = sy + cy * (cy - 1.0) / 2.0
+    sycy_pos = s[1] + c[1] * (c[1] + 1.0) / 2.0
+    sycy_neg = s[1] + c[1] * (c[1] - 1.0) / 2.0
 
-    sxcx_pos = sx + cx * (cx + 1.0) / 2.0
-    sxcx_neg = sx + cx * (cx - 1.0) / 2.0
+    sxcx_pos = s[0] + c[0] * (c[0] + 1.0) / 2.0
+    sxcx_neg = s[0] + c[0] * (c[0] - 1.0) / 2.0
 
-    cxyzsyz = 1.0 - cx * cx - cy * cy - cz * cz - 2.0 * (sx + sy + sz)
+    cxyzsyz = 1.0 - c[0] * c[0] - c[1] * c[1] - c[2] * c[2] - 2.0 * (s[0] + s[1] + s[2])
 
     for time_step in range(computation_time_steps):
 
@@ -124,18 +120,14 @@ class NumbaGenericElectronSolver(PythonGenericElectronSolver, ABC):
             self.get_beam_simulation_functions()
         )
 
-        f_steps_list = jited_calculate(
+        f_steps_list = numba_calculate(
             self.computation_time_steps,
             should_simulate_beam_for_time_step,
             simulate_beam,
             self.no_xy,
             self.no_z_with_buffer,
-            self.sx,
-            self.sy,
-            self.sz,
-            self.cx,
-            self.cy,
-            self.cz,
+            self.s,
+            self.c,
             self.alpha,
             self.dt,
             self.no_z,

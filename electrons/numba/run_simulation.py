@@ -17,11 +17,8 @@ def run_simulation(
     electron_density_per_cm3=1e9,
     verbose=True,
 ):
-    Solver = (
-        SOLVER_MAP[solver_name]
-        if solver_name in SOLVER_MAP.keys()
-        else ContinousBeamPDEsolver
-    )
+    # select a solver based on string name, defaukt to ContinousBeamPDEsolver if the name is invalid
+    Solver = SOLVER_MAP.get(solver_name, ContinousBeamPDEsolver)
 
     if solver_name not in SOLVER_MAP.keys():
         print(f'Invalid solver type "{solver_name}", defaulting to Continous solver.')
