@@ -14,7 +14,7 @@ def von_neumann_expression(
     grid_spacing_cm: float,
     ion_mobility: float,
     Efield_V_cm: float,
-) -> Tuple[float, Tuple[float, float, float], Tuple[float, float, float]]:
+) -> Tuple[float, NDArray, NDArray]:
     """
     Finds a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
     decreases and eventually damps out
@@ -41,7 +41,34 @@ def von_neumann_expression(
 
         von_neumann_expression = criterion_1 and criterion_2
 
-    return dt, [sx, sy, sz], [cx, cy, cz]
+    return dt, np.array([sx, sy, sz]), np.array([cx, cy, cz])
+
+
+def create_sc_gradients(
+    s: NDArray,
+    c: NDArray,
+) -> Tuple[NDArray, NDArray, float]:
+    sc_pos = np.array(
+        [
+            s[0] + c[0] * (c[0] + 1.0) / 2.0,
+            s[1] + c[1] * (c[1] + 1.0) / 2.0,
+            s[2] + c[2] * (c[2] + 1.0) / 2.0,
+        ]
+    )
+
+    sc_neg = np.array(
+        [
+            s[0] + c[0] * (c[0] - 1.0) / 2.0,
+            s[1] + c[1] * (c[1] - 1.0) / 2.0,
+            s[2] + c[2] * (c[2] - 1.0) / 2.0,
+        ]
+    )
+
+    sc_center = (
+        1.0 - c[0] * c[0] - c[1] * c[1] - c[2] * c[2] - 2.0 * (s[0] + s[1] + s[2])
+    )
+
+    return sc_pos, sc_neg, sc_center
 
 
 @dataclass
@@ -156,25 +183,7 @@ class GenericElectronSolver(ABC):
 
         f_steps_list = np.zeros(self.computation_time_steps)
 
-        sc_pos = [
-            self.s[0] + self.c[0] * (self.c[0] + 1.0) / 2.0,
-            self.s[1] + self.c[1] * (self.c[1] + 1.0) / 2.0,
-            self.s[2] + self.c[2] * (self.c[2] + 1.0) / 2.0,
-        ]
-
-        sc_neg = [
-            self.s[0] + self.c[0] * (self.c[0] - 1.0) / 2.0,
-            self.s[1] + self.c[1] * (self.c[1] - 1.0) / 2.0,
-            self.s[2] + self.c[2] * (self.c[2] - 1.0) / 2.0,
-        ]
-
-        cxyzsyz = (
-            1.0
-            - self.c[0] * self.c[0]
-            - self.c[1] * self.c[1]
-            - self.c[2] * self.c[2]
-            - 2.0 * (self.s[0] + self.s[1] + self.s[2])
-        )
+        sc_pos, sc_neg, sc_center = create_sc_gradients(self.s, self.c)
 
         """
         Start the simulation by evolving the distribution one step at a time
@@ -203,26 +212,29 @@ class GenericElectronSolver(ABC):
                         positive_temp_entry = 0
 
                         positive_temp_entry += sc_pos[0] * positive_array[i - 1, j, k]
-                        positive_temp_entry += sc_pos[1] * positive_array[i, j - 1, k]
-                        positive_temp_entry += sc_pos[2] * positive_array[i, j, k - 1]
-
                         positive_temp_entry += sc_neg[0] * positive_array[i + 1, j, k]
+
+                        positive_temp_entry += sc_pos[1] * positive_array[i, j - 1, k]
                         positive_temp_entry += sc_neg[1] * positive_array[i, j + 1, k]
+
+                        positive_temp_entry += sc_pos[2] * positive_array[i, j, k - 1]
                         positive_temp_entry += sc_neg[2] * positive_array[i, j, k + 1]
 
-                        positive_temp_entry += cxyzsyz * positive_array[i, j, k]
+                        positive_temp_entry += sc_center * positive_array[i, j, k]
 
                         # same for the negative charge carriers
-                        positive_temp_entry = 0
-                        negative_temp_entry += sc_pos[0] * negative_array[i + 1, j, k]
-                        negative_temp_entry += sc_pos[1] * negative_array[i, j + 1, k]
-                        negative_temp_entry += sc_pos[2] * negative_array[i, j, k + 1]
+                        negative_temp_entry = 0
 
+                        negative_temp_entry += sc_pos[0] * negative_array[i + 1, j, k]
                         negative_temp_entry += sc_neg[0] * negative_array[i - 1, j, k]
+
+                        negative_temp_entry += sc_pos[1] * negative_array[i, j + 1, k]
                         negative_temp_entry += sc_neg[1] * negative_array[i, j - 1, k]
+
+                        negative_temp_entry += sc_pos[2] * negative_array[i, j, k + 1]
                         negative_temp_entry += sc_neg[2] * negative_array[i, j, k - 1]
 
-                        negative_temp_entry += cxyzsyz * negative_array[i, j, k]
+                        negative_temp_entry += sc_center * negative_array[i, j, k]
 
                         # the recombination part
                         recomb_temp = (

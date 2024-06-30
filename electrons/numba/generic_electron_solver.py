@@ -8,6 +8,9 @@ from numpy.typing import NDArray
 from electrons.common.generic_electron_solver import (
     GenericElectronSolver as PythonGenericElectronSolver,
 )
+from electrons.common.generic_electron_solver import create_sc_gradients
+
+numba_create_sc_gradients = njit(create_sc_gradients)
 
 
 @njit
@@ -17,8 +20,8 @@ def numba_calculate(
     simulate_beam: Callable[[NDArray, NDArray], float],
     no_xy: int,
     no_z_with_buffer: int,
-    s: Tuple[float, float, float],
-    c: Tuple[float, float, float],
+    s: NDArray,
+    c: NDArray,
     alpha: float,
     dt: float,
     no_z: int,
@@ -33,16 +36,7 @@ def numba_calculate(
 
     f_steps_list = np.zeros(computation_time_steps)
 
-    szcz_pos = s[2] + c[2] * (c[2] + 1.0) / 2.0
-    szcz_neg = s[2] + c[2] * (c[2] - 1.0) / 2.0
-
-    sycy_pos = s[1] + c[1] * (c[1] + 1.0) / 2.0
-    sycy_neg = s[1] + c[1] * (c[1] - 1.0) / 2.0
-
-    sxcx_pos = s[0] + c[0] * (c[0] + 1.0) / 2.0
-    sxcx_neg = s[0] + c[0] * (c[0] - 1.0) / 2.0
-
-    cxyzsyz = 1.0 - c[0] * c[0] - c[1] * c[1] - c[2] * c[2] - 2.0 * (s[0] + s[1] + s[2])
+    sc_neg, sc_pos, sc_center = numba_create_sc_gradients(s, c)
 
     for time_step in range(computation_time_steps):
 
@@ -64,28 +58,32 @@ def numba_calculate(
             for j in range(1, no_xy - 1):
                 for k in range(1, no_z_with_buffer - 1):
                     # using the Lax-Wendroff scheme
-                    positive_temp_entry = szcz_pos * positive_array[i, j, k - 1]
-                    positive_temp_entry += szcz_neg * positive_array[i, j, k + 1]
+                    positive_temp_entry = 0
 
-                    positive_temp_entry += sycy_pos * positive_array[i, j - 1, k]
-                    positive_temp_entry += sycy_neg * positive_array[i, j + 1, k]
+                    positive_temp_entry += sc_pos[0] * positive_array[i - 1, j, k]
+                    positive_temp_entry += sc_neg[0] * positive_array[i + 1, j, k]
 
-                    positive_temp_entry += sxcx_pos * positive_array[i - 1, j, k]
-                    positive_temp_entry += sxcx_neg * positive_array[i + 1, j, k]
+                    positive_temp_entry += sc_pos[1] * positive_array[i, j - 1, k]
+                    positive_temp_entry += sc_neg[1] * positive_array[i, j + 1, k]
 
-                    positive_temp_entry += cxyzsyz * positive_array[i, j, k]
+                    positive_temp_entry += sc_pos[2] * positive_array[i, j, k - 1]
+                    positive_temp_entry += sc_neg[2] * positive_array[i, j, k + 1]
+
+                    positive_temp_entry += sc_center * positive_array[i, j, k]
 
                     # same for the negative charge carriers
-                    negative_temp_entry = szcz_pos * negative_array[i, j, k + 1]
-                    negative_temp_entry += szcz_neg * negative_array[i, j, k - 1]
+                    negative_temp_entry = 0
 
-                    negative_temp_entry += sycy_pos * negative_array[i, j + 1, k]
-                    negative_temp_entry += sycy_neg * negative_array[i, j - 1, k]
+                    negative_temp_entry += sc_pos[0] * negative_array[i + 1, j, k]
+                    negative_temp_entry += sc_neg[0] * negative_array[i - 1, j, k]
 
-                    negative_temp_entry += sxcx_pos * negative_array[i + 1, j, k]
-                    negative_temp_entry += sxcx_neg * negative_array[i - 1, j, k]
+                    negative_temp_entry += sc_pos[1] * negative_array[i, j + 1, k]
+                    negative_temp_entry += sc_neg[1] * negative_array[i, j - 1, k]
 
-                    negative_temp_entry += cxyzsyz * negative_array[i, j, k]
+                    negative_temp_entry += sc_pos[2] * negative_array[i, j, k + 1]
+                    negative_temp_entry += sc_neg[2] * negative_array[i, j, k - 1]
+
+                    negative_temp_entry += sc_center * negative_array[i, j, k]
 
                     # the recombination part
                     recomb_temp = (
