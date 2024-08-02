@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from functions import IonTracks_continuous_beam
+
+from hadrons.utils import IonTracks_continuous_beam
 
 # set parameters
 data_dict = dict(

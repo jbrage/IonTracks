@@ -2,11 +2,11 @@
 test_single_track_python.py
 """
 
-import pytest
 import numpy as np
-from tests.ks_initial.testing_parameters import TEST_DATA_DICT
-from hadrons.functions import E_MeV_u_to_LET_keV_um, calc_b_cm
+import pytest
+
 from hadrons.solver import SolverType, solvePDE
+from tests.ks_initial.testing_parameters import TEST_DATA_DICT
 from tests.utils import get_PDEsolver_input
 
 

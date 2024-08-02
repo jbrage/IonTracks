@@ -1,10 +1,12 @@
-import numpy as np
-import pandas as pd
 import argparse
 import sys
 from pathlib import Path
-from hadrons.functions import Jaffe_theory
+
+import numpy as np
+import pandas as pd
 from testing_parameters import MATRIX_DF
+
+from hadrons.utils import Jaffe_theory
 
 # absolute path of the file as string
 ABS_PATH = str(Path(__file__).parent.absolute())

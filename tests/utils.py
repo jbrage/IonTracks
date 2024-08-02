@@ -1,9 +1,9 @@
-from hadrons.functions import E_MeV_u_to_LET_keV_um, calc_b_cm
+from hadrons.utils import calculate_track_radius, get_LET_per_um
 
 
 def get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um):
-    LET_keV_um = E_MeV_u_to_LET_keV_um(E_MeV_u, particle)
-    track_radius_cm = calc_b_cm(LET_keV_um)
+    LET_keV_um = get_LET_per_um(E_MeV_u, particle)
+    track_radius_cm = calculate_track_radius(LET_keV_um)
 
     return dict(
         LET_keV_um=float(LET_keV_um),

@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from math import cos, exp, log, pi, sin
-from typing import Literal, NDArray, Tuple
+from typing import Literal, Tuple
 
 import numpy as np
+from numpy.typing import NDArray
+
+from hadrons.utils import calculate_track_radius, get_LET_per_um
 
 from ..common_properties import (
     W,
@@ -45,39 +48,40 @@ def create_sc_gradients(
 
 @dataclass
 class GenericHadronSolver(ABC):
-    LET: float  # [keV/um]
     voltage: float  # [V/cm] magnitude of the electric field
     IC_angle: float  # [rad]
     electrode_gap: float  # [cm]
-    E_MeV_u: float
-    a0_nm: float
-    RDD_model: str
-    grid_spacing: float  # [cm]
-    track_radius: float  # [cm]
-    RDD_model: Literal["Gauss", "Geiss"]
+    energy: float  # [MeV/u]
+    RDD_model: Literal["Gauss", "Geiss"] = "Gauss"
+    grid_spacing: float = 3e-4  # [cm]
+    # TODO: Narrow this type down
+    particle: str = "proton"
     no_z_electrode: int = (
         4  # length of the electrode-buffer to ensure no ions drift through the array in one time step
     )
     n_track_radii: int = 6  # scaling factor to determine the grid width
+    dt: float = 1.0
 
     @property
-    def normalized_LET(self) -> float:
-        return self.LET * 1e7
+    def LET_per_um(self) -> float:
+        return get_LET_per_um(self.energy, self.particle)
+
+    @property
+    def LET_per_cm(self) -> float:
+        return self.LET_per_um * 1e7
 
     @property
     def a0(self) -> float:
         density_ratio = water_density_g_cm3 / air_density_g_cm3
-        return self.a0_nm * 1e-7 * density_ratio
+        return 8.0 * 1e-7 * density_ratio
 
     @property
     def r_max(self) -> float:
-        return Geiss_r_max(self.E_MeV_u, air_density_g_cm3)
+        return Geiss_r_max(self.energy, air_density_g_cm3)
 
     @property
-    def c(self) -> float:
-        return (
-            self.normalized_LET / (pi * W) * (1 / (1 + 2 * log(self.r_max / self.a0)))
-        )
+    def track_radius(self) -> float:
+        return calculate_track_radius(self.LET_per_um)
 
     @property
     def track_area(self) -> float:
@@ -85,7 +89,7 @@ class GenericHadronSolver(ABC):
 
     @property
     def Gaussian_factor(self) -> float:
-        N0 = self.normalized_LET / W
+        N0 = self.LET_per_cm / W
         return N0 / self.track_area
 
     @property
@@ -119,7 +123,8 @@ class GenericHadronSolver(ABC):
                 -(r_cm**2) / self.track_radius**2
             )
         elif self.RDD_model == "Geiss":
-            return lambda r_cm: Geiss_RRD_cm(r_cm, self.c, self.a0, self.r_max)
+            c = self.LET_per_cm / (pi * W) * (1 / (1 + 2 * log(self.r_max / self.a0)))
+            return lambda r_cm: Geiss_RRD_cm(r_cm, c, self.a0, self.r_max)
         else:
             raise ValueError(
                 f"Invalid RDD model: {self.RDD_model}. Must be 'Gauss' or 'Geiss'."
@@ -209,8 +214,8 @@ class GenericHadronSolver(ABC):
 
                 no_initialised_charge_carriers += initialized_carriers
 
-            for i in range(1, self.no_x - 1):
-                for j in range(1, self.no_x - 1):
+            for i in range(1, self.no_xy - 1):
+                for j in range(1, self.no_xy - 1):
                     for k in range(1, self.no_z_with_buffer - 1):
                         # using the Lax-Wendroff scheme
                         positive_temp_entry = 0

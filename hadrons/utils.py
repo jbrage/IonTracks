@@ -40,13 +40,13 @@ def Jaffe_theory(
 
     # provide either x as LET (keV/um) or enery (MeV/u), default is input_is_LET=True
     if not input_is_LET:
-        LET_keV_um = E_MeV_u_to_LET_keV_um(x, particle=particle)
+        LET_keV_um = get_LET_per_um(x, particle=particle)
 
     LET_eV_cm = LET_keV_um * 1e7
     electric_field = voltage_V / electrode_gap_cm
 
     # estimate the Gaussian track radius for the given LET
-    b_cm = calc_b_cm(LET_keV_um)
+    b_cm = calculate_track_radius(LET_keV_um)
 
     N0 = LET_eV_cm / W
     g = alpha * N0 / (8.0 * pi * ion_diff)
@@ -110,7 +110,7 @@ def Jaffe_theory(
     return pd.DataFrame([result_dic])
 
 
-def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="dry_air"):
+def get_LET_per_um(energy, particle="proton", material="dry_air"):
     """
     Calculate the stopping power in dry air or water using PSTAR data
     """
@@ -141,11 +141,11 @@ def E_MeV_u_to_LET_keV_um(E_MeV_u, particle="proton", material="dry_air"):
     # interpolate the data
     interpolate_LET = interp1d(df[E_col_name], df[particle_col_name])
 
-    if isinstance(E_MeV_u, (list, tuple, np.ndarray)):
-        LET_keV_um = [interpolate_LET(i) for i in E_MeV_u]
+    if isinstance(energy, (list, tuple, np.ndarray)):
+        LET_per_micrometer = [interpolate_LET(i) for i in energy]
     else:
-        LET_keV_um = interpolate_LET(E_MeV_u)
-    return LET_keV_um
+        LET_per_micrometer = interpolate_LET(energy)
+    return LET_per_micrometer
 
 
 def doserate_to_fluence(dose_Gy_min, energy_MeV_u, particle="proton"):
@@ -161,13 +161,13 @@ def doserate_to_fluence(dose_Gy_min, energy_MeV_u, particle="proton"):
     density_kg_cm3 = air_density_kg_m3 * 1e-6
 
     # get the LET
-    LET_keV_um = E_MeV_u_to_LET_keV_um(energy_MeV_u, particle)
+    LET_keV_um = get_LET_per_um(energy_MeV_u, particle)
     LET_keV_cm = LET_keV_um * 1e4
     fluence_cm2_s = dose_Gy_s * joule_to_keV * density_kg_cm3 / LET_keV_cm
     return fluence_cm2_s
 
 
-def calc_b_cm(LET_keV_um):
+def calculate_track_radius(LET: float):
     """
     Calculate the Gaussian track radius as suggested by Rossomme et al.
     Returns the track radius in cm given a LET [keV/um]
@@ -176,18 +176,18 @@ def calc_b_cm(LET_keV_um):
         Path(ABS_PATH, "data_LET", "LET_b.dat"), delimiter=",", dtype=float
     )
     scale = 1e-3
-    LET = data[:, 0] * scale
+    LET_data = data[:, 0] * scale
     b = data[:, 1]
-    logLET = np.log10(LET)
+    logLET = np.log10(LET_data)
     z = np.polyfit(logLET, b, 2)
     p = np.poly1d(z)
 
-    b_cm = p(np.log10(LET_keV_um)) * 1e-3
+    track_radius = p(np.log10(LET)) * 1e-3
     threshold = 2e-3
-    if b_cm < threshold:
-        b_cm = threshold
+    if track_radius < threshold:
+        track_radius = threshold
     # b_cm = 1.05*1e-3 # cm   ... Kanai, avoids edges
-    return b_cm
+    return track_radius
 
 
 def ks_initial_IonTracks(
@@ -212,8 +212,8 @@ def ks_initial_IonTracks(
         beta = libam.AT_beta_from_E_single(E_MeV_u)
         a0_nm *= beta
 
-    LET_keV_um = E_MeV_u_to_LET_keV_um(E_MeV_u, particle)
-    track_radius_cm = calc_b_cm(LET_keV_um)
+    LET_keV_um = get_LET_per_um(E_MeV_u, particle)
+    track_radius_cm = calculate_track_radius(LET_keV_um)
 
     result_dic = {
         "E_MeV_u": E_MeV_u,
@@ -262,10 +262,10 @@ def IonTracks_continuous_beam(
     correction factor k_s
     """
 
-    LET_keV_um = E_MeV_u_to_LET_keV_um(E_MeV_u, particle=particle)
+    LET_keV_um = get_LET_per_um(E_MeV_u, particle=particle)
     fluencerate_cm2_s = doserate_to_fluence(doserate_Gy_min, E_MeV_u, particle=particle)
 
-    track_radius_cm = calc_b_cm(LET_keV_um)
+    track_radius_cm = calculate_track_radius(LET_keV_um)
 
     result_dic = {
         "E_MeV_u": E_MeV_u,
