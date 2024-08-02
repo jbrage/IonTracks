@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from math import sqrt
-from typing import NDArray, Tuple
+from typing import Tuple
 
 import numpy as np
+from numpy.typing import NDArray
 
 from hadrons.python.generic_hadron_solver import GenericHadronSolver
 
@@ -40,7 +41,7 @@ class InitialHadronSolver(GenericHadronSolver):
     def should_insert_track(self, time_step: int) -> bool:
         return time_step == 0
 
-    def get_track_for_time_step(self):
+    def get_track_for_time_step(self, _):
         positive_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
         negative_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
         no_initialised_charge_carriers = 0.0

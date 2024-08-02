@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from math import exp, sqrt
 from random import Random
-from typing import NDArray, Tuple
+from typing import Tuple
 
 import numpy as np
+from numpy.typing import NDArray
 
 from hadrons.python.generic_hadron_solver import GenericHadronSolver
 
@@ -37,7 +38,8 @@ def create_sc_gradients(
 
 @dataclass
 class ContinousHadronSolver(GenericHadronSolver):
-    fluence_rate: float  # [cm-^2/s]
+    # TODO: dataclasses do not allow for non-default properties if the inherided class has default properties - not sure how to fix this yet
+    fluence_rate: float = None  # [cm-^2/s]
     # TODO: add a seed param
     _random_generator: Random = Random(2137)
 
