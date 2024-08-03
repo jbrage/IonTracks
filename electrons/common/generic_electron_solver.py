@@ -76,13 +76,16 @@ class GenericElectronSolver(ABC):
         return self.voltage / self.electrode_gap
 
     @property
-    def computation_time_steps(self) -> int:
-        separation_time_steps = int(
+    def separation_time_steps(self) -> int:
+        return int(
             self.electrode_gap
             / (2.0 * self.ion_mobility * self.electric_field * self.dt)
         )
 
-        return separation_time_steps * 3
+    @property
+    def computation_time_steps(self) -> int:
+
+        return self.separation_time_steps * 3
 
     @property
     def delta_border(self) -> int:
@@ -162,8 +165,6 @@ class GenericElectronSolver(ABC):
         Create an array which includes the number of track to be inserted for each time step
         The tracks are distributed uniformly in time
         """
-
-        positive_temp_entry = negative_temp_entry = recomb_temp = 0.0
 
         f_steps_list = np.zeros(self.computation_time_steps)
 

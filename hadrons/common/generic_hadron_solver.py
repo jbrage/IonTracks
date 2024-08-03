@@ -180,7 +180,7 @@ class GenericHadronSolver(ABC):
         self.dt, self.s, self.c = self.von_neumann_expression()
 
     @abstractmethod
-    def should_insert_track(self, time_step: int) -> bool:
+    def get_number_of_tracks(self, time_step: int) -> int:
         pass
 
     @abstractmethod
@@ -192,19 +192,21 @@ class GenericHadronSolver(ABC):
     def calculate(self):
         positive_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
         negative_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
-        no_initialised_charge_carriers = 0.0
 
         positive_array_temp = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
         negative_array_temp = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
 
         no_recombined_charge_carriers = 0.0
+        no_initialised_charge_carriers = 0.0
+
+        f_steps_list = np.zeros(self.computation_time_steps)
 
         sc_pos, sc_neg, sc_center = create_sc_gradients(self.s, self.c)
 
         for time_step in range(self.computation_time_steps):
             # calculate the new densities and store them in temporary arrays
 
-            if self.should_insert_track(time_step):
+            for _ in range(self.get_number_of_tracks(time_step)):
                 positive_track, negative_track, initialized_carriers = (
                     self.get_track_for_time_step(time_step)
                 )
@@ -267,8 +269,8 @@ class GenericHadronSolver(ABC):
             positive_array[:] = positive_array_temp[:]
             negative_array[:] = negative_array_temp[:]
 
-        f = (
+        f_steps_list[time_step] = (
             no_initialised_charge_carriers - no_recombined_charge_carriers
         ) / no_initialised_charge_carriers
 
-        return 1.0 / f
+        return f_steps_list
