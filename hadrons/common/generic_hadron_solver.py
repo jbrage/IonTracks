@@ -54,7 +54,7 @@ class GenericHadronSolver(ABC):
     electrode_gap: float  # [cm]
     energy: float  # [MeV/u]
     RDD_model: Literal["Gauss", "Geiss"] = "Gauss"
-    grid_spacing: float = 3e-4  # [cm]
+    grid_spacing: float = 3e-3  # [cm]
     # TODO: Narrow this type down
     particle: str = "proton"
     no_z_electrode: int = (
@@ -118,7 +118,7 @@ class GenericHadronSolver(ABC):
     @property
     def computation_time_steps(self) -> int:
 
-        return self.separation_time_steps * 2
+        return self.separation_time_steps * 5
 
     @property
     def RDD_function(self):

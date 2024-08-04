@@ -3,6 +3,7 @@ from math import exp, sqrt
 
 import numpy as np
 from numpy.random import Generator, default_rng
+from tqdm import tqdm
 
 from hadrons.common.generic_hadron_solver import GenericHadronSolver
 from hadrons.utils.common import doserate_to_fluence
@@ -69,6 +70,7 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
         def get_number_of_tracks(self, time_step: int) -> bool:
             if time_step == 0:
                 print(self.track_distribution)
+                return 1
             return self.track_distribution[time_step]
 
         def get_random_xy_coordinate(self):
@@ -96,11 +98,18 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
 
             x, y = self.get_random_coordinates()
 
-            for k in range(self.no_z_electrode, self.no_z + self.no_z_electrode):
+            for k in tqdm(
+                range(self.no_z_electrode, self.no_z + self.no_z_electrode),
+                desc="Calculating track...",
+            ):
                 for i in range(self.no_xy):
+                    x_track_dist_squared = (i - x) ** 2
+                    x_chamber_dist_squared = (i - self.xy_middle_idx) ** 2
+
                     for j in range(self.no_xy):
                         distance_from_center = (
-                            sqrt((i - x) ** 2 + (j - y) ** 2) * self.grid_spacing
+                            sqrt(x_track_dist_squared + (j - y) ** 2)
+                            * self.grid_spacing
                         )
                         ion_density = self.Gaussian_factor * exp(
                             -(distance_from_center**2) / self.track_radius**2
@@ -109,12 +118,11 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
                         negative_array[i, j, k] += ion_density
                         # calculate the recombination only for charge carriers inside the circle
                         if (
-                            sqrt(
-                                (i - self.xy_middle_idx) ** 2
-                                + (j - self.xy_middle_idx) ** 2
-                            )
+                            sqrt(x_chamber_dist_squared + (j - self.xy_middle_idx) ** 2)
                             < self.inner_radius
                         ):
+                            # TODO: I'm not sure why this check is here - when separatioon_time_steps >= computation_time_steps,
+                            # the simulation will not work properly since we are ignoring all the initialised charge carriers
                             if time_step > self.separation_time_steps:
                                 no_initialised_charge_carriers += ion_density
 
