@@ -14,6 +14,7 @@ def run_simulation(
     electrode_gap=0.1,
     energy=200,
     electron_density_per_cm3=1e9,
+    doserate=100,
     verbose=False,
 ):
     if solver_name not in SOLVER_MAP.keys():
@@ -28,6 +29,8 @@ def run_simulation(
         print(f"Voltage: {voltage} [V]")
         print(f"Electrode gap: {electrode_gap} [cm]")
         print(f"Electron density per cm3: {electron_density_per_cm3}")
+        if solver_name == "continous":
+            print(f"doserate: {doserate} [Gy/s]")
 
     solver = Solver(
         # LET=LET,
@@ -35,6 +38,7 @@ def run_simulation(
         IC_angle=IC_angle,
         electrode_gap=electrode_gap,
         energy=energy,
+        doserate=doserate,
     )
 
     return solver.calculate()

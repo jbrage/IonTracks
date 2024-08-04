@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from math import exp, sqrt
-from random import Random
 
 import numpy as np
+from numpy.random import Generator, default_rng
 
 from hadrons.common.generic_hadron_solver import GenericHadronSolver
+from hadrons.utils.common import doserate_to_fluence
 from hadrons.utils.track_distribution import create_track_distribution
 
 
@@ -13,9 +14,9 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
     @dataclass
     class ContinousHadronSolver(base_solver_class):
         # TODO: dataclasses do not allow for non-default properties if the inherided class has default properties - not sure how to fix this yet
-        fluence_rate: float = None  # [cm-^2/s]
+        doserate: float = None  # [cm-^2/s]
         # TODO: add a seed param
-        _random_generator: Random = Random(2137)
+        default_random_generator: Generator = default_rng(2137)
 
         @property
         def buffer_radius(self):
@@ -30,7 +31,7 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
 
         @property
         def random_generator(self):
-            return self._random_generator
+            return self.default_random_generator
 
         @property
         def xy_middle_idx(self):
@@ -42,12 +43,19 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
 
             return outer_radius - self.buffer_radius
 
+        @property
+        def fluence_rate(self):
+            return doserate_to_fluence(
+                self.doserate, self.energy, particle=self.particle
+            )
+
         def __post_init__(self):
             super().__post_init__()
             self.simulation_time = self.computation_time_steps * self.dt
             self.number_of_tracks = int(
                 self.fluence_rate * self.simulation_time * self.track_area
             )
+
             self.number_of_tracks = max(1, self.number_of_tracks)
 
             self.track_distribution = create_track_distribution(
@@ -55,10 +63,12 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
                 self.dt,
                 self.number_of_tracks,
                 self.separation_time_steps,
-                self._random_generator,
+                self.random_generator,
             )
 
         def get_number_of_tracks(self, time_step: int) -> bool:
+            if time_step == 0:
+                print(self.track_distribution)
             return self.track_distribution[time_step]
 
         def get_random_xy_coordinate(self):

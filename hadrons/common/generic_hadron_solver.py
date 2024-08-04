@@ -5,6 +5,7 @@ from typing import Literal, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
+from tqdm import tqdm
 
 from hadrons.utils.common import calculate_track_radius, get_LET_per_um
 
@@ -109,12 +110,15 @@ class GenericHadronSolver(ABC):
         return self.voltage / self.electrode_gap
 
     @property
-    def computation_time_steps(self) -> int:
-        separation_time_steps = int(
+    def separation_time_steps(self) -> int:
+        return int(
             self.electrode_gap / (2.0 * ion_mobility * self.electric_field * self.dt)
         )
 
-        return separation_time_steps * 2
+    @property
+    def computation_time_steps(self) -> int:
+
+        return self.separation_time_steps * 2
 
     @property
     def RDD_function(self):
@@ -203,7 +207,9 @@ class GenericHadronSolver(ABC):
 
         sc_pos, sc_neg, sc_center = create_sc_gradients(self.s, self.c)
 
-        for time_step in range(self.computation_time_steps):
+        for time_step in tqdm(
+            range(self.computation_time_steps), desc="Calculating..."
+        ):
             # calculate the new densities and store them in temporary arrays
 
             for _ in range(self.get_number_of_tracks(time_step)):
@@ -269,8 +275,14 @@ class GenericHadronSolver(ABC):
             positive_array[:] = positive_array_temp[:]
             negative_array[:] = negative_array_temp[:]
 
-        f_steps_list[time_step] = (
-            no_initialised_charge_carriers - no_recombined_charge_carriers
-        ) / no_initialised_charge_carriers
+            print(no_initialised_charge_carriers, no_recombined_charge_carriers)
+
+            # calculate the fraction of charge carriers that have not recombined, if no charge carriers have been initialised, set the fraction to 1
+            if no_initialised_charge_carriers != 0:
+                f_steps_list[time_step] = (
+                    no_initialised_charge_carriers - no_recombined_charge_carriers
+                ) / no_initialised_charge_carriers
+            else:
+                f_steps_list[time_step] = 1
 
         return f_steps_list
