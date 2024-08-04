@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from hadrons.utils import Jaffe_theory, ks_initial_IonTracks
+from hadrons.utils.common import ks_initial_IonTracks
+from hadrons.utils.jaffe_theory import Jaffe_theory
 
 # set parameters
 data_dict = dict(

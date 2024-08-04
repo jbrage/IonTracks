@@ -6,7 +6,7 @@ from typing import Literal, Tuple
 import numpy as np
 from numpy.typing import NDArray
 
-from hadrons.utils import calculate_track_radius, get_LET_per_um
+from hadrons.utils.common import calculate_track_radius, get_LET_per_um
 
 from ..common_properties import (
     W,

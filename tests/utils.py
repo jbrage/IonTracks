@@ -1,4 +1,4 @@
-from hadrons.utils import calculate_track_radius, get_LET_per_um
+from hadrons.utils.common import calculate_track_radius, get_LET_per_um
 
 
 def get_PDEsolver_input(E_MeV_u, voltage_V, electrode_gap_cm, particle, grid_size_um):

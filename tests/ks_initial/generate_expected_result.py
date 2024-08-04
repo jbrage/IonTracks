@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from testing_parameters import MATRIX_DF
 
-from hadrons.utils import Jaffe_theory
+from hadrons.utils.jaffe_theory import Jaffe_theory
 
 # absolute path of the file as string
 ABS_PATH = str(Path(__file__).parent.absolute())
