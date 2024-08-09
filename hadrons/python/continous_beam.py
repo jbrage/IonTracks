@@ -1,0 +1,4 @@
+from hadrons.common.continous_beam import get_continous_beam_pde_solver
+from hadrons.common.generic_hadron_solver import GenericHadronSolver
+
+ContinousHadronSolver = get_continous_beam_pde_solver(GenericHadronSolver)

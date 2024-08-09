@@ -8,7 +8,7 @@ SOLVER_MAP = {"continous": ContinousBeamPDEsolver, "pulsed": PulsedBeamPDEsolver
 
 def run_simulation(
     solver_name="continous",
-    voltage_V=300,
+    voltage=300,
     electrode_gap=0.1,
     electron_density_per_cm3=1e9,
     verbose=True,
@@ -22,15 +22,15 @@ def run_simulation(
 
     if verbose:
         print(f"Running the simulation using the {solver_name} solver.")
-        print(f"Voltage: {voltage_V} [V]")
+        print(f"Voltage: {voltage} [V]")
         print(f"Electrode gap: {electrode_gap} [cm]")
         print(f"Electron density per cm3: {electron_density_per_cm3}")
 
     solver = Solver(
         electron_density_per_cm3=electron_density_per_cm3,
-        voltage_V=voltage_V,
+        voltage=voltage,
         electrode_gap=electrode_gap,
-        grid_spacing_cm=5e-4,
+        grid_spacing=5e-4,
     )
 
     return solver.calculate()
