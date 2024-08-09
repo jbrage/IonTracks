@@ -175,7 +175,7 @@ class GenericElectronSolver(ABC):
         Start the simulation by evolving the distribution one step at a time
         """
 
-        for time_step in tqdm(range(self.computation_time_steps)):
+        for time_step in tqdm(range(self.computation_time_steps), desc="Simulating"):
 
             """
             Refill the array with the electron density each time step
