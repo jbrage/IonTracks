@@ -85,8 +85,6 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
                 for i in range(self.no_xy)
             ]
 
-            print(self.recombination_calculation_matrix)
-
         def get_number_of_tracks(self, time_step: int) -> bool:
             return self.track_distribution[time_step]
 
