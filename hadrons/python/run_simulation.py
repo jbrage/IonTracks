@@ -8,7 +8,6 @@ SOLVER_MAP = {"continous": ContinousHadronSolver, "initial": InitialHadronSolver
 
 def run_simulation(
     solver_name="continous",
-    LET=1,
     voltage=300,
     IC_angle=1,
     electrode_gap=0.1,
@@ -29,17 +28,23 @@ def run_simulation(
         print(f"Voltage: {voltage} [V]")
         print(f"Electrode gap: {electrode_gap} [cm]")
         print(f"Electron density per cm3: {electron_density_per_cm3}")
-        if solver_name == "continous":
-            print(f"doserate: {doserate} [Gy/s]")
+        print(f"doserate: {doserate} [Gy/s]")
 
-    solver = Solver(
-        # LET=LET,
-        voltage=voltage,  # [V/cm] magnitude of the electric field
-        IC_angle=IC_angle,
-        electrode_gap=electrode_gap,
-        energy=energy,
-        doserate=doserate,
-    )
+    if solver_name == "continous":
+        solver = Solver(
+            voltage=voltage,  # [V/cm] magnitude of the electric field
+            IC_angle=IC_angle,
+            electrode_gap=electrode_gap,
+            energy=energy,
+            doserate=doserate,
+        )
+    else:
+        solver = Solver(
+            voltage=voltage,  # [V/cm] magnitude of the electric field
+            IC_angle=IC_angle,
+            electrode_gap=electrode_gap,
+            energy=energy,
+        )
 
     return solver.calculate()
 

@@ -10,6 +10,13 @@ from hadrons.utils.common import doserate_to_fluence
 from hadrons.utils.track_distribution import create_track_distribution
 
 
+def is_point_within_radius_from_center(
+    x: int, y: int, radius: float, center_x: int, center_y: int
+):
+    """Cached function that caluclates if the point is within a given radius from the center point. It's cached to speed up the calculations."""
+    return (x - center_x) ** 2 + (y - center_y) ** 2 < radius**2
+
+
 def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
 
     @dataclass
@@ -67,10 +74,20 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
                 self.random_generator,
             )
 
+            # precalcuate the recombination calculation radius
+            self.recombination_calculation_matrix = [
+                [
+                    is_point_within_radius_from_center(
+                        i, j, self.inner_radius, self.xy_middle_idx, self.xy_middle_idx
+                    )
+                    for j in range(self.no_xy)
+                ]
+                for i in range(self.no_xy)
+            ]
+
+            print(self.recombination_calculation_matrix)
+
         def get_number_of_tracks(self, time_step: int) -> bool:
-            if time_step == 0:
-                print(self.track_distribution)
-                return 1
             return self.track_distribution[time_step]
 
         def get_random_xy_coordinate(self):
@@ -121,11 +138,22 @@ def get_continous_beam_pde_solver(base_solver_class: GenericHadronSolver):
                             sqrt(x_chamber_dist_squared + (j - self.xy_middle_idx) ** 2)
                             < self.inner_radius
                         ):
-                            # TODO: I'm not sure why this check is here - when separatioon_time_steps >= computation_time_steps,
-                            # the simulation will not work properly since we are ignoring all the initialised charge carriers
                             if time_step > self.separation_time_steps:
                                 no_initialised_charge_carriers += ion_density
 
             return positive_array, negative_array, no_initialised_charge_carriers
+
+        def should_count_recombined_charge_carriers(
+            self, time_step: int, x: int, y: int, z: int
+        ) -> bool:
+            # Only count after the separation time steps
+            if time_step < self.separation_time_steps:
+                return False
+
+            # Don't count for voxels on the chambers electrode
+            if z <= self.no_z_electrode or z >= (self.no_z + self.no_z_electrode):
+                return False
+
+            return self.recombination_calculation_matrix[x][y]
 
     return ContinousHadronSolver

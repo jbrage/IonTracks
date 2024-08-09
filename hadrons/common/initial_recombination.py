@@ -39,4 +39,10 @@ def get_initial_recombination_pde_solver(base_solver_class: GenericHadronSolver)
 
             return positive_array, negative_array, no_initialised_charge_carriers
 
+        def should_count_recombined_charge_carriers(
+            self, time_step: int, x: float, y: float, z: float
+        ) -> bool:
+            # For initial recombination we can always count the charge carriers
+            return True
+
     return InitialHadronSolver

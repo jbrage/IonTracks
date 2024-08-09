@@ -118,7 +118,7 @@ class GenericHadronSolver(ABC):
     @property
     def computation_time_steps(self) -> int:
 
-        return self.separation_time_steps * 5
+        return self.separation_time_steps * 4
 
     @property
     def RDD_function(self):
@@ -193,6 +193,12 @@ class GenericHadronSolver(ABC):
     ) -> Tuple[NDArray[np.float64], NDArray[np.float64], float]:
         pass
 
+    @abstractmethod
+    def should_count_recombined_charge_carriers(
+        self, time_step: int, x: float, y: float, z: float
+    ) -> bool:
+        pass
+
     def calculate(self):
         positive_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
         negative_array = np.zeros((self.no_xy, self.no_xy, self.no_z_with_buffer))
@@ -225,6 +231,7 @@ class GenericHadronSolver(ABC):
             for i in range(1, self.no_xy - 1):
                 for j in range(1, self.no_xy - 1):
                     for k in range(1, self.no_z_with_buffer - 1):
+
                         # using the Lax-Wendroff scheme
                         positive_temp_entry = 0
 
@@ -264,7 +271,10 @@ class GenericHadronSolver(ABC):
                         positive_array_temp[i, j, k] = positive_temp_entry - recomb_temp
                         negative_array_temp[i, j, k] = negative_temp_entry - recomb_temp
 
-                        no_recombined_charge_carriers += recomb_temp
+                        if self.should_count_recombined_charge_carriers(
+                            time_step, x=i, y=j, z=k
+                        ):
+                            no_recombined_charge_carriers += recomb_temp
 
             # update the positive and negative arrays
 
@@ -274,8 +284,6 @@ class GenericHadronSolver(ABC):
 
             positive_array[:] = positive_array_temp[:]
             negative_array[:] = negative_array_temp[:]
-
-            print(no_initialised_charge_carriers, no_recombined_charge_carriers)
 
             # calculate the fraction of charge carriers that have not recombined, if no charge carriers have been initialised, set the fraction to 1
             if no_initialised_charge_carriers != 0:
