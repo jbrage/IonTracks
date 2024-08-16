@@ -1,6 +1,6 @@
-import numpy as np
-import pandas as pd
 import itertools
+
+import pandas as pd
 
 # set parameters
 TEST_DATA_DICT = dict(
