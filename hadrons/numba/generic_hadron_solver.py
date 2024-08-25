@@ -112,13 +112,13 @@ class NumbaHadronSolver(GenericHadronSolver, ABC):
         pass
 
     def calculate(self):
-        should_insert_track, get_track_for_time_step = (
+        get_number_of_tracks, get_track_for_time_step = (
             self.get_track_inserting_functions()
         )
 
         f_steps_list = numba_calculate(
             self.computation_time_steps,
-            should_insert_track,
+            get_number_of_tracks,
             get_track_for_time_step,
             self.no_xy,
             self.no_z_with_buffer,
