@@ -63,10 +63,10 @@ for idx, data in data_df_shorter.iterrows():
     IonTracks_df = pd.concat([IonTracks_df, temp_df], ignore_index=True)
     print(IonTracks_df)
 
-# add to the plot
-sns.scatterplot(data=IonTracks_df, ax=ax, x="E_MeV_u", y="ks", label="IonTracks")
-ax.set_ylabel("$k_s$")
-fig.savefig("Jaffe_theory_and_IonTracks.pdf", bbox_inches="tight")
+# # add to the plot
+# sns.scatterplot(data=IonTracks_df, ax=ax, x="E_MeV_u", y="ks", label="IonTracks")
+# ax.set_ylabel("$k_s$")
+# fig.savefig("Jaffe_theory_and_IonTracks.pdf", bbox_inches="tight")
 
-# save ion tracks results
-IonTracks_df.to_csv("IonTracks.csv")
+# # save ion tracks results
+# IonTracks_df.to_csv("IonTracks.csv")

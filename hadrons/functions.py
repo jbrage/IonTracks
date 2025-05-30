@@ -9,7 +9,7 @@ from scipy.interpolate import interp1d
 from scipy.special import hankel1
 
 from hadrons.cython_files.continuous_beam import continuous_beam_PDEsolver
-from hadrons.cython_files.initial_recombination import single_track_PDEsolver
+from hadrons.parallel.initial_recombination_numba_parallel import single_track_PDEsolver
 
 sys.path.append("./cython_files")
 
@@ -236,10 +236,11 @@ def ks_initial_IonTracks(
         RDD_model,
         grid_size_um * 1e-4,
         track_radius_cm,
-        SHOW_PLOT=SHOW_PLOT,
+        # SHOW_PLOT=SHOW_PLOT,
         debug=debug,
     )
-    result_dic["ks"] = ks
+    # Ensure ks is a float (in case a numpy scalar is returned)
+    result_dic["ks"] = ks.solve()
     return pd.DataFrame([result_dic])
 
 

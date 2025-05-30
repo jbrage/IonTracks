@@ -2,7 +2,7 @@ import time
 from math import exp, sqrt
 
 import numpy as np
-from numba import njit
+from numba import njit, prange
 
 from ..common_properties import alpha, no_z_electrode
 from ..geiss_utils import Geiss_RRD_cm
@@ -70,7 +70,7 @@ def initialize_Gaussian_distriution_Geiss(
     return no_initialised_charge_carriers, positive_array, negative_array
 
 
-@njit
+@njit(parallel=True)
 def main_loop(
     sz,
     cz,
@@ -102,7 +102,8 @@ def main_loop(
     sxcx_neg = sx + cx * (cx - 1.0) / 2.0
 
     for _ in range(computation_time_steps):
-        for i in range(1, no_x - 1):
+        # Parallelize the spatial update
+        for i in prange(1, no_x - 1):
             for j in range(1, no_x - 1):
                 for k in range(1, no_z_with_buffer - 1):
                     # using the Lax-Wendroff scheme
@@ -143,7 +144,8 @@ def main_loop(
 
                     no_recombined_charge_carriers += recomb_temp
 
-        for i in range(1, no_x - 1):
+        # Parallelize the update step as well
+        for i in prange(1, no_x - 1):
             for j in range(1, no_x - 1):
                 for k in range(1, no_z_with_buffer - 1):
                     # update the positive and negative arrays

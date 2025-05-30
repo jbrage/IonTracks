@@ -1,0 +1,62 @@
+... Jaffe theory finished
+   E_MeV_u  voltage_V  electrode_gap_cm  ...  RDD_model  IC_angle_rad        ks
+0       60        200               0.1  ...      Gauss             0  1.000139
+
+[1 rows x 9 columns]
+   E_MeV_u  voltage_V  electrode_gap_cm  ...  RDD_model  IC_angle_rad        ks
+0       60        200               0.1  ...      Gauss             0  1.000139
+1      250        200               0.1  ...      Gauss             0  1.000051
+
+[2 rows x 9 columns]
+   E_MeV_u  voltage_V  electrode_gap_cm  ...  RDD_model  IC_angle_rad        ks
+0       60        200               0.1  ...      Gauss             0  1.000139
+1      250        200               0.1  ...      Gauss             0  1.000051
+2       60        300               0.1  ...      Gauss             0  1.000097
+
+[3 rows x 9 columns]
+   E_MeV_u  voltage_V  electrode_gap_cm  ...  RDD_model  IC_angle_rad        ks
+0       60        200               0.1  ...      Gauss             0  1.000139
+1      250        200               0.1  ...      Gauss             0  1.000051
+2       60        300               0.1  ...      Gauss             0  1.000097
+3      250        300               0.1  ...      Gauss             0  1.000035
+
+[4 rows x 9 columns]
+   E_MeV_u  voltage_V  electrode_gap_cm  ...  RDD_model  IC_angle_rad        ks
+0       60        200               0.1  ...      Gauss             0  1.000139
+1      250        200               0.1  ...      Gauss             0  1.000051
+2       60        300               0.1  ...      Gauss             0  1.000097
+3      250        300               0.1  ...      Gauss             0  1.000035
+4       60        200               0.1  ...      Gauss             0  1.001925
+
+[5 rows x 9 columns]
+   E_MeV_u  voltage_V  electrode_gap_cm  ...  RDD_model  IC_angle_rad        ks
+0       60        200               0.1  ...      Gauss             0  1.000139
+1      250        200               0.1  ...      Gauss             0  1.000051
+2       60        300               0.1  ...      Gauss             0  1.000097
+3      250        300               0.1  ...      Gauss             0  1.000035
+4       60        200               0.1  ...      Gauss             0  1.001925
+5      250        200               0.1  ...      Gauss             0  1.001218
+
+[6 rows x 9 columns]
+   E_MeV_u  voltage_V  electrode_gap_cm  ...  RDD_model  IC_angle_rad        ks
+0       60        200               0.1  ...      Gauss             0  1.000139
+1      250        200               0.1  ...      Gauss             0  1.000051
+2       60        300               0.1  ...      Gauss             0  1.000097
+3      250        300               0.1  ...      Gauss             0  1.000035
+4       60        200               0.1  ...      Gauss             0  1.001925
+5      250        200               0.1  ...      Gauss             0  1.001218
+6       60        300               0.1  ...      Gauss             0  1.001310
+
+[7 rows x 9 columns]
+   E_MeV_u  voltage_V  electrode_gap_cm  ...  RDD_model  IC_angle_rad        ks
+0       60        200               0.1  ...      Gauss             0  1.000139
+1      250        200               0.1  ...      Gauss             0  1.000051
+2       60        300               0.1  ...      Gauss             0  1.000097
+3      250        300               0.1  ...      Gauss             0  1.000035
+4       60        200               0.1  ...      Gauss             0  1.001925
+5      250        200               0.1  ...      Gauss             0  1.001218
+6       60        300               0.1  ...      Gauss             0  1.001310
+7      250        300               0.1  ...      Gauss             0  1.000839
+
+[8 rows x 9 columns]
+Elapsed: 1:16.42
