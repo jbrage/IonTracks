@@ -253,6 +253,7 @@ def IonTracks_continuous_beam(
     PRINT_parameters=False,
     SHOW_PLOT=False,
     myseed=int(np.random.randint(1, 1e7)),
+    backend="cython",
 ):
     """
     Calculate the stopping power, fluence-rate, and track radius as a
@@ -264,7 +265,6 @@ def IonTracks_continuous_beam(
 
     LET_keV_um = E_MeV_u_to_LET_keV_um(E_MeV_u, particle=particle)
     fluencerate_cm2_s = doserate_to_fluence(doserate_Gy_min, E_MeV_u, particle=particle)
-
     track_radius_cm = calc_b_cm(LET_keV_um)
 
     result_dic = {
@@ -284,6 +284,15 @@ def IonTracks_continuous_beam(
         "PRINT_parameters": PRINT_parameters,
         "seed": myseed,
     }
+
+    if backend == "cython":
+        from hadrons.cython_files.continuous_beam import continuous_beam_PDEsolver
+    elif backend == "python":
+        from hadrons.python.continuous_beam import continuous_beam_PDEsolver
+    elif backend == "numba":
+        from hadrons.numba_files.continuous_beam_numba import continuous_beam_PDEsolver
+    else:
+        raise ValueError(f"Unsupported backend: {backend}")
 
     ks = continuous_beam_PDEsolver(result_dic, extra_params_dic)
     result_dic["ks_IonTracks"] = ks
