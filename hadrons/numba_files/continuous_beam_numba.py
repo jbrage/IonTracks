@@ -53,7 +53,7 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     number_of_iterations = 1e7      # preallocate track coordinates
 
     '''
-    find a time step dt which fulfils the von Neumann criterion, i.e. ensures the numericl error does not increase but
+    find a time step dt which fulfils the von Neumann criterion, i.e. ensures the numerical error does not increase but
     decreases and eventually damps out
     '''
     dt = 1.
@@ -159,7 +159,7 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     f = 0.0
 
     '''
-    Start the simulation by evovling the distribution one step at a time
+    Start the simulation by evolving the distribution one step at a time
     '''
     for time_step in range(computation_time_steps):
         # number of track to be inserted randomly during this time step
