@@ -151,19 +151,19 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     initialise_tracks = np.asarray(np.histogram(distributed_times, bins)[0], dtype=np.int32) #
     # ensure that the simulation also evovles the last initialised track without insert new
     dont_initialise_tracks = np.zeros(separation_time_steps)
-    track_times_histrogram = np.asarray(np.concatenate((initialise_tracks, dont_initialise_tracks)), dtype=np.int32)
+    track_times_histogram = np.asarray(np.concatenate((initialise_tracks, dont_initialise_tracks)), dtype=np.int32)
     computation_time_steps += separation_time_steps
 
     coordinate_counter, number_of_initialized_tracks = [0] * 2
     x, y, f, distance_from_center, ion_density, positive_temp_entry, negative_temp_entry, recomb_temp = [0.0] * 8
 
     '''
-    Start the simulation by evovling the distribution one step at a time
+    Start the simulation by evolving the distribution one step at a time
     '''
     for time_step in range(computation_time_steps):
         print(f"step {time_step+1}/{computation_time_steps}")
         # number of track to be inserted randomly during this time step
-        tracks_to_be_initialised = track_times_histrogram[time_step]
+        tracks_to_be_initialised = track_times_histogram[time_step]
         for insert_track in range(tracks_to_be_initialised):
             number_of_initialized_tracks += 1
 
@@ -173,7 +173,7 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
             y = y_coordinates_ALL[coordinate_counter]
 
             # check whether the point is inside the circle.
-            # it is too time comsuming simply to set x=rand(0,1)*no_xy
+            # it is too time consuming simply to set x=rand(0,1)*no_xy
             while sqrt((x - mid_xy_array) ** 2 + (y - mid_xy_array) ** 2) > inner_radius:
                 coordinate_counter += 1
                 x = x_coordinates_ALL[coordinate_counter]
