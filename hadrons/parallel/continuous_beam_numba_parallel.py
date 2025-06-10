@@ -2,7 +2,7 @@ from math import exp, pi, sqrt
 from time import time
 
 import numpy as np
-from numba import njit
+from numba import njit, prange
 
 
 def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
@@ -61,7 +61,7 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     dt = 1.
     von_neumann_expression = False
     Efield_V_cm = voltage_V/d_cm # to ensure the same dt in all simulations
-    start = time()
+    start_von_neumann = time()
     while not von_neumann_expression:
         dt /= 1.01
         # as defined in the Deghan (2004) paper
@@ -72,8 +72,8 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
         cz = ion_mobility*Efield_V_cm*dt/unit_length_cm
         # check von Neumann's criterion
         von_neumann_expression = (2*(sx + sy + sz) + cx**2 + cy**2 + cz**2 <= 1 and cx**2*cy**2*cz**2 <= 8*sx*sy*sz)
-    stop = time()
-    print(f"Execution for Von Neuman expression: {stop-start}s")
+    stop_von_neumann = time()
+    print(f"Execution for Von Neuman expression: {stop_von_neumann-start_von_neumann}s")
     '''
     Calculate the number of step required to drag the two charge carrier distributions apart
     along with the number of tracks to be uniformly distributed over the domain
@@ -100,6 +100,8 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     negative_array_temp = np.zeros((no_xy,  no_xy, no_z_with_buffer))
     no_recombined_charge_carriers = 0.0
     no_initialised_charge_carriers = 0.0
+    positive_array_temp = np.zeros((no_xy, no_xy, no_z_with_buffer))
+    negative_array_temp = np.zeros((no_xy, no_xy, no_z_with_buffer))
 
     '''
     The following part is only used to plot the figure; consider to remove
@@ -169,7 +171,6 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     times_calculate_new_densities = []
     print(f"Number of steps: {computation_time_steps}")
     for time_step in range(computation_time_steps):
-
         # number of track to be inserted randomly during this time step
         start_insert_track_step = time()
         tracks_to_be_initialised = track_times_histrogram[time_step]
@@ -205,21 +206,20 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
                 ax3.imshow(np.asarray(positive_array[:,:,mid_z_array],dtype=np.double),vmin=MINVAL,vmax=MAXVAL)
                 cb.set_clim(vmin=MINVAL, vmax=MAXVAL)
                 plt.pause(1e-3)
-
         start_calculating_new_densites = time()
-        no_recombined_charge_carriers += calculate_new_densites(
+        no_recombined_charge_carriers_to_add, positive_array_temp, negative_array_temp = calculate_new_densites(
             positive_array, negative_array,
             positive_array_temp, negative_array_temp,
             alpha, dt, sx, sy, sz, cx, cy, cz,
             no_xy, no_z_with_buffer, no_z, no_z_electrode, mid_xy_array, inner_radius
         )
+        no_recombined_charge_carriers += no_recombined_charge_carriers_to_add
         stop_calculating_new_densites = time()
-
         # Zamiana wskaźników tablic (żeby uniknąć kopiowania danych)
         positive_array, positive_array_temp = positive_array_temp, positive_array
         negative_array, negative_array_temp = negative_array_temp, negative_array
 
-        # print(f"{time_step}/{computation_time_steps} : {stop_insert_track_step-start_insert_track_step}ms {stop_calculating_new_densites-start_calculating_new_densites}ms")
+        # print(f"{time_step}/{computation_time_steps} : {stop_insert_track_step-start_insert_track_step}s {stop_calculating_new_densites-start_calculating_new_densites}s")
         times_insert_track_step.append(stop_insert_track_step-start_insert_track_step)
         times_calculate_new_densities.append(stop_calculating_new_densites-start_calculating_new_densites)
     f = (no_initialised_charge_carriers - no_recombined_charge_carriers)/no_initialised_charge_carriers
@@ -229,13 +229,12 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     print(f"Time of simulation: {stop-start}s")
     return 1./f
 
-@njit
+@njit(parallel=True)
 def calculate_new_densites(positive_array, negative_array, positive_array_temp, negative_array_temp,
                          alpha, dt, sx, sy, sz, cx, cy, cz,
                          no_xy, no_z_with_buffer, no_z, no_z_electrode, mid_xy_array, inner_radius):
     no_recombined = 0.0
-
-    for i in range(1, no_xy - 1):
+    for i in prange(1, no_xy - 1):
         for j in range(1, no_xy - 1):
             for k in range(1, no_z_with_buffer - 1):
                 pos = positive_array[i, j, k]
@@ -269,9 +268,9 @@ def calculate_new_densites(positive_array, negative_array, positive_array_temp, 
                     if ((i - mid_xy_array) ** 2 + (j - mid_xy_array) ** 2) < inner_radius ** 2:
                         no_recombined += recomb
 
-    return no_recombined
+    return no_recombined, positive_array_temp, negative_array_temp
 
-@njit
+@njit(parallel=True)
 def insert_tracks_step(
     tracks_to_be_initialised,
     coordinate_counter,
@@ -302,7 +301,7 @@ def insert_tracks_step(
             x = x_coordinates_ALL[coordinate_counter]
             y = y_coordinates_ALL[coordinate_counter]
 
-        for k in range(no_z_electrode, no_z + no_z_electrode):
+        for k in prange(no_z_electrode, no_z + no_z_electrode):
             for i in range(no_xy):
                 for j in range(no_xy):
                     dx = i - x
