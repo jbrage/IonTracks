@@ -291,6 +291,8 @@ def IonTracks_continuous_beam(
         from hadrons.python.continuous_beam import continuous_beam_PDEsolver
     elif backend == "numba":
         from hadrons.numba_files.continuous_beam_numba import continuous_beam_PDEsolver
+    elif backend == "cupy":
+        from hadrons.python_cupy.continuous_beam_cupy import continuous_beam_PDEsolver
     else:
         raise ValueError(f"Unsupported backend: {backend}")
 
