@@ -21,7 +21,7 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     track_radius    = extra_params_dic["track_radius_cm"]   # Gaussian radius b [cm]
     SHOW_PLOT         = extra_params_dic["SHOW_PLOT"]         # show frames of the simulation
     seed               = extra_params_dic["seed"]              # ensure the coordinates are sampled anew each run
-    np.random.seed(seed)                                                      # set the new seed
+    rng = np.random.default_rng(seed)  # Use Generator for reproducibility
     PRINT             = extra_params_dic["PRINT_parameters"]  # print parameters?
 
     unit_length_cm  = extra_params_dic["unit_length_cm"]    # cm, size of every voxel length
@@ -88,8 +88,8 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     Gaussian_factor = N0/(pi*b_cm**2)
 
     # preallocate arrays
-    x_coordinates_ALL = np.random.uniform(0, 1, int(number_of_iterations))*no_xy
-    y_coordinates_ALL = np.random.uniform(0, 1, int(number_of_iterations))*no_xy
+    x_coordinates_ALL = rng.uniform(0, 1, int(number_of_iterations))*no_xy
+    y_coordinates_ALL = rng.uniform(0, 1, int(number_of_iterations))*no_xy
     positive_array = np.zeros((no_xy, no_xy, no_z_with_buffer))
     negative_array = np.zeros((no_xy, no_xy, no_z_with_buffer))
     positive_array_temp = np.zeros((no_xy, no_xy, no_z_with_buffer))
@@ -145,7 +145,7 @@ def continuous_beam_PDEsolver(parameter_dic, extra_params_dic):
     '''
 
     time_s = computation_time_steps * dt
-    randomized = np.random.random(number_of_tracks)
+    randomized = rng.random(number_of_tracks)
     summed = np.cumsum(randomized)
     distributed_times = np.asarray(summed)/max(summed) * time_s
     bins = np.arange(0.0, time_s + dt, dt)

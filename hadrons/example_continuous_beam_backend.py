@@ -1,4 +1,6 @@
+import argparse
 import itertools
+import os
 import sys
 import time
 from datetime import datetime
@@ -10,11 +12,12 @@ import seaborn as sns
 from functions import IonTracks_continuous_beam
 
 def main():
-    # Parse backend argument
-    if len(sys.argv) > 1:
-        backend = sys.argv[1].lower()
-    else:
-        backend = "cython"
+    parser = argparse.ArgumentParser(description="Run IonTracks continuous beam example with backend and seed selection.")
+    parser.add_argument("backend", nargs="?", default="cython", help="Backend to use: cython, python, numba")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
+    args = parser.parse_args()
+    backend = args.backend.lower()
+    myseed = args.seed
 
     # set parameters
     data_dict = dict(
@@ -33,7 +36,6 @@ def main():
     # Prepare output file for stepwise results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     artifacts_dir = "../artifacts"
-    import os
     os.makedirs(artifacts_dir, exist_ok=True)
     filename = os.path.join(artifacts_dir, f"IonTracks_results_{backend}_{timestamp}.txt")
     IonTracks_df = pd.DataFrame()
@@ -46,6 +48,7 @@ def main():
             particle=data.particle,
             doserate_Gy_min=data.doserate_Gy_min,
             backend=backend,
+            myseed=myseed,
         )
         IonTracks_df = pd.concat([IonTracks_df, result_df], ignore_index=True)
         results_str += f"Step {idx}\n"

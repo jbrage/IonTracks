@@ -35,8 +35,8 @@ def continuous_beam_PDEsolver(dict parameter_dic, dict extra_params_dic):
     
     cdef double track_radius    = extra_params_dic["track_radius_cm"]   # Gaussian radius b [cm]
     cdef bint SHOW_PLOT         = extra_params_dic["SHOW_PLOT"]         # show frames of the simulation
-    cdef int seed               = extra_params_dic["seed"]              # ensure the coordinates are sampled anew each run
-    rnd.seed(seed)                                                      # set the new seed
+    cdef int seed               = extra_params_dic["seed"]
+    cdef object rng             = rnd.default_rng(seed)  # Use Generator for reproducibility
     cdef bint PRINT             = extra_params_dic["PRINT_parameters"]  # print parameters?
 
     cdef double unit_length_cm  = extra_params_dic["unit_length_cm"]    # cm, size of every voxel length
@@ -161,7 +161,7 @@ def continuous_beam_PDEsolver(dict parameter_dic, dict extra_params_dic):
     The tracks are distributed uniformly in time
     '''
     cdef double time_s = computation_time_steps * dt
-    cdef np.ndarray[DTYPE_t, ndim=1] randomized = rnd.random(number_of_tracks)
+    cdef np.ndarray[DTYPE_t, ndim=1] randomized = rng.random(number_of_tracks)
     cdef np.ndarray[DTYPE_t, ndim=1] summed = np.cumsum(randomized)
     cdef np.ndarray[DTYPE_t, ndim=1] distributed_times = np.asarray(summed)/max(summed) * time_s
     cdef np.ndarray[DTYPE_t, ndim=1] bins = np.arange(0.0, time_s + dt, dt)
