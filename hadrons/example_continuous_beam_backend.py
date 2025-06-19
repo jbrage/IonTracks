@@ -9,13 +9,19 @@ import pandas as pd
 import seaborn as sns
 from functions import IonTracks_continuous_beam
 
+
 def main():
     # Parse backend argument
     if len(sys.argv) > 1:
         backend = sys.argv[1].lower()
     else:
         backend = "cython"
-
+    args = {}
+    if len(sys.argv) > 2:
+        try:
+            args['myseed'] = int(sys.argv[2])
+        except:
+            raise ValueError("seed should be a number")
     # set parameters
     data_dict = dict(
         electrode_gap_cm=[0.1],
@@ -46,6 +52,7 @@ def main():
             particle=data.particle,
             doserate_Gy_min=data.doserate_Gy_min,
             backend=backend,
+            **args
         )
         IonTracks_df = pd.concat([IonTracks_df, result_df], ignore_index=True)
         results_str += f"Step {idx}\n"
