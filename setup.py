@@ -77,4 +77,7 @@ setup(
     ext_modules=extensions,
     install_requires=install_requires,
     setup_requires=["numpy", "cython"],
+    extras_require={
+        "gpu": ["cupy-cuda12x"]
+    },
 )
