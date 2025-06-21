@@ -48,7 +48,7 @@ source venv/bin/activate
 Compile this package and all its requirements:
 
 ```
-CYTHONIZE=1 pip install --editable .
+python install_project.py
 ```
 
 Run the example script:
