@@ -9,3 +9,4 @@ numba
 isort
 flake8
 flake8-isort
+cupy-cuda12x
