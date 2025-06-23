@@ -202,3 +202,4 @@ hadrons/cython_files/continuous_beam.c
 hadrons/cython_files/initial_recombination.c
 numba_electrons_times.npy
 python_electrons_times.npy
+artifacts/

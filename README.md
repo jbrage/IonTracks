@@ -45,11 +45,23 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-Compile this package and all its requirements:
+There are two ways to compile the package with requirements:
 
-```
-CYTHONIZE=1 pip install --editable .
-```
+* Compile this package and all its basic requirements:
+
+  ```
+  CYTHONIZE=1 pip install --editable .
+   ```
+
+* If you have a GPU and want to compute using the cupy library, compile the package with the base requirements, along with an additional GPU requirement:
+  * For the cuda 11x version:
+      ```
+      CYTHONIZE=1 pip install --editable ".[gpu-cuda11x]"
+      ```
+  * For the cuda 12x version:
+      ```
+      CYTHONIZE=1 pip install --editable ".[gpu-cuda12x]"
+      ```
 
 Run the example script:
 
