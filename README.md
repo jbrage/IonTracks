@@ -1,6 +1,6 @@
 # _IonTracks_
 
-Questions? Contact jeppebrage@gmail.com (mail addresses given in the papers are obsolete)
+Questions? Contact jeppe.christensen@psi.ch 
 
 ## _IonTracks_ calculations
 
@@ -10,9 +10,12 @@ Features the calculation of recombination losses in ion, electron, and photon be
   Use the "IonBeams" scripts for ions.
 - Photon and electron beams are associated with uniform charge carrier densities. The current scripts enable the inclusion of electric fields varying in both time and space in constrast to theories.
 
-## Validation
+## Documentation and validation
 
-#### Ion beams:
+Details can be found under ```documentation``` including a note about the differences between simulating recombination in photon/electron or ion beams. 
+
+
+#### Validation of recombination in light ion beams:
 
 The _IonTracks_ code is partially validated in
 Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler (2016) A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams _Medical Physics_ 43.**10**: 5484-92 https://aapm.onlinelibrary.wiley.com/doi/full/10.1118/1.4962483
@@ -21,9 +24,9 @@ and
 Christensen, Jeppe Brage _et al_ (2020) Mapping initial and general recombination in scanning proton pencil beams _Phys. Med. Biol._ **65** 115003
 https://iopscience.iop.org/article/10.1088/1361-6560/ab8579
 
-#### Photon and electron beams:
+#### Validation of recombination in electron and photon beams:
 
-_IonTracks_ is validated against the Boag theory (the basis of the Two-voltage method) for photon and electron beams with uniform charge carrier densities
+_IonTracks_ is validated against the Boag theory (the basis of the Two-voltage method) for photon and electron beams with uniform charge carrier densities, see ```documentation```.
 
 ## Calculation of recombination losses
 
