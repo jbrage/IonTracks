@@ -1,25 +1,23 @@
-name: Python tests
+name: tests
 
 on:
   push:
-    branches: [ master ]
-    tags: ['*']
+    branches: [master, v4]
+    tags: ["*"]
   pull_request:
-    branches: [ master ]
+    branches: [master, v4]
   release:
-    types: [ published ]
+    types: [published]
 
 jobs:
-  example_test:
-    if: >
-      !contains(needs.initialise.outputs.commit_message, '[ci skip]') &&
-      !contains(needs.initialise.outputs.commit_message, '[skip ci]')
-    name: Fast tests
-    runs-on:  ${{ matrix.platform }}
+  test:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
-       matrix:
-         python-version: ['3.8', '3.9', '3.10']
-         platform: [ubuntu-latest]  # TODO add Windows as well
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.13"]
     steps:
       - uses: actions/checkout@v6
 
@@ -28,18 +26,41 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies and iontracks package
+      - name: Install package with dev extras
+        run: python -m pip install -e ".[dev]"
+
+      - name: Lint
         run: |
-          python --version
-          pip --version
-          CYTHONIZE=1 pip install --editable .
+          ruff check src tests examples validation report
+          ruff format --check src tests examples validation report
 
-      - name: Run example script
-        run: python example_single_track.py
-        working-directory: hadrons
+      - name: Tests
+        run: python -m pytest
 
-      - name: Install test dependencies
-        run: pip install pytest pytest-xdist
+      - name: Examples
+        run: |
+          python examples/scanned_field.py
+          python examples/cyclotron_250MeV.py
 
-      - name: Run unit and integration tests
-        run: python -m pytest -n 2
+  validation:
+    # regenerates the validation report and both benchmarks; fails if a validation check fails
+    name: validation (ubuntu / Python 3.13)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: "3.13"
+
+      - name: Install package with plot extras
+        run: python -m pip install -e ".[plot]"
+
+      - name: Validation checks
+        run: python validation/run_validation.py
+
+      - name: Benchmarks
+        run: |
+          python validation/benchmark_dcpt2019.py
+          python validation/benchmark_risoe2026.py

@@ -1,79 +1,85 @@
-# _IonTracks_
+# IonTracks
 
-Questions? Contact jeppe.christensen@psi.ch 
+Recombination losses in air-filled parallel-plate ionization chambers for beams with an
+**arbitrary, user-defined time structure**: continuous beams, pulses, pulse trains, synchrocyclotron
+and linac pulses, spills, and whole scanned (PBS) fields evaluated at points across the chamber area.
 
-## _IonTracks_ calculations
+> **Version 4 (branch `v4`) is a rewrite in progress.** The previous code (Cython/Numba/Python/CuPy
+> backends, ion-track solvers) is tagged `v3-legacy` and kept under [`legacy/`](legacy/) until the
+> new code covers it. Design and rationale: [`report/code_review_and_refactoring_plan.md`](report/code_review_and_refactoring_plan.md).
 
-Features the calculation of recombination losses in ion, electron, and photon beams in parallel-plate gas-filled ionization chambers:
+Questions? Contact <jeppe.christensen@psi.ch>
 
-- Ion beams exhibit a non-uniform charge carrier distribution which is accounted for through amorphous track structure theory.
-  Use the "IonBeams" scripts for ions.
-- Photon and electron beams are associated with uniform charge carrier densities. The current scripts enable the inclusion of electric fields varying in both time and space in constrast to theories.
+## What it computes
 
-## Documentation and validation
+For every lateral sample point of the chamber, IonTracks follows the local ionisation history in
+time and solves drift, diffusion and volume recombination of positive and negative ions across the
+gap. Positive and negative ions have separate mobilities and diffusion coefficients. The output is:
 
-Details can be found under ```documentation``` including a note about the differences between simulating recombination in photon/electron or ion beams. 
+- the recombination correction factor `k_s` (charge-weighted over the chamber area);
+- the collected charge;
+- the time-resolved chamber current;
+- a map of `k_s` over the sensitive area.
 
+Beam-off gaps longer than the chamber's memory (about one ion transit time) split the delivery into
+independent episodes. Identical episodes, such as repeated pulses, are simulated once, so long
+deliveries stay cheap. A preflight plan estimates the runtime before anything is run.
 
-#### Validation of recombination in light ion beams:
+Current scope: laterally uniform ionisation per sample point (general recombination). Track
+structure (initial recombination), free electrons and space charge are planned.
 
-The _IonTracks_ code is partially validated in
-Christensen, Jeppe Brage, Heikki Tölli, and Niels Bassler (2016) A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams _Medical Physics_ 43.**10**: 5484-92 https://aapm.onlinelibrary.wiley.com/doi/full/10.1118/1.4962483
+## Install
 
-and
-Christensen, Jeppe Brage _et al_ (2020) Mapping initial and general recombination in scanning proton pencil beams _Phys. Med. Biol._ **65** 115003
-https://iopscience.iop.org/article/10.1088/1361-6560/ab8579
+Python ≥ 3.10 on Windows or Linux. No compiler is needed (Numba JIT).
 
-#### Validation of recombination in electron and photon beams:
-
-_IonTracks_ is validated against the Boag theory (the basis of the Two-voltage method) for photon and electron beams with uniform charge carrier densities, see ```documentation```.
-
-## Calculation of recombination losses
-
-Both the IonBeams folder and the electron/photon folder feature example files.
-
-## Dependencies and installation
-
-- The software has been tested on Ubuntu 20.04
-- Following packages are required:
-
-```
-sudo apt install python3-pip python3-venv
+```bash
+pip install -e ".[dev]"      # use ".[dev,plot]" to run the validation scripts (matplotlib)
+python -m pytest             # about 5 s after the first Numba compilation
+python examples/scanned_field.py
 ```
 
-Create python virtual environment `venv`, a directory which will hold compiled version of this package and all the libraries it needs to run (more on venv: https://docs.python.org/3/library/venv.html):
+## Quick start
 
-```
-python -m venv venv
-source venv/bin/activate
-```
+```python
+import numpy as np
+from iontracks import Field, Gas, ParallelPlateChamber, PiecewiseConstant, solve_field, solve_point
 
-There are two ways to compile the package with requirements:
+chamber = ParallelPlateChamber(gap_cm=0.2, voltage_V=200, sensitive_radius_cm=0.78)
+gas = Gas.air()                       # or Gas.air(T_K=..., p_hPa=...), Gas.air_legacy()
 
-* Compile this package and all its basic requirements:
+# 1) Uniform beam with any time structure, e.g. 200 pulses of 1 mGy, 4 us long, at 200 Hz
+dose_per_pulse = 1e-3 * gas.ion_pairs_per_cm3_per_Gy()          # ion pairs / cm^3
+pulses = PiecewiseConstant.pulse_train(dose_per_pulse, width_s=4e-6, period_s=5e-3, n_pulses=200)
+print(solve_point(pulses, chamber, gas).ks)   # ~1.01 (no free electrons yet)
 
-  ```
-  CYTHONIZE=1 pip install --editable .
-   ```
-
-* If you have a GPU and want to compute using the cupy library, compile the package with the base requirements, along with an additional GPU requirement:
-  * For the cuda 11x version:
-      ```
-      CYTHONIZE=1 pip install --editable ".[gpu-cuda11x]"
-      ```
-  * For the cuda 12x version:
-      ```
-      CYTHONIZE=1 pip install --editable ".[gpu-cuda12x]"
-      ```
-
-Run the example script:
-
-```
-python hadrons/example_single_track.py
+# 2) Scanned field: one entry per spot (times, position, particles, sigma, stopping power in air)
+field = Field.from_spots(t_on_s=[0, 3e-3], t_off_s=[2e-3, 5e-3], x_cm=[0, 0.5], y_cm=[0, 0],
+                         n_particles=3e8, sigma_cm=0.4, stopping_power_MeV_cm2_g=5.4)
+result = solve_field(field, chamber, gas)
+print(result.ks, result.charge_C)
+t = np.linspace(0, 6e-3, 100)
+current = result.current_A(t)          # chamber current averaged over the bins of t
 ```
 
-When you are done, deactivate your virtual enviroment:
+## Validation
 
-```
-deactivate
-```
+[`validation/VALIDATION.md`](validation/VALIDATION.md) has 26 quantitative checks and 5 diagnostic figures, regenerated by `python validation/run_validation.py`. Tests in [`tests/`](tests/) check:
+
+- Boag's pulsed theory: relative error in (1 − f) below 10⁻⁴;
+- Boag's continuous theory, to second order;
+- charge conservation and the Ramo–Shockley current (10⁻¹⁰);
+- positivity of the transport;
+- the equivalence limits: independent pulses equal one pulse, short pulses tend to the instantaneous limit, and overlapping pulses recombine more.
+
+Blind benchmarks against measurements (no model input is fitted to the data they are compared with):
+
+- [`validation/BENCHMARK_DCPT2019.md`](validation/BENCHMARK_DCPT2019.md): spot-scanned proton layers (Roos chamber, 70–244 MeV);
+- [`validation/BENCHMARK_RISOE2026.md`](validation/BENCHMARK_RISOE2026.md): pulsed 16 MeV electron and 10 MV FFF beams (extrapolation chamber, 0.5–10 mm).
+
+## References
+
+- Christensen J B, Tölli H, Bassler N (2016) *A general algorithm for calculation of recombination losses in ionization chambers exposed to ion beams*, Med. Phys. 43, 5484. <https://doi.org/10.1118/1.4962483>
+- Christensen J B *et al* (2020) *Mapping initial and general recombination in scanning proton pencil beams*, Phys. Med. Biol. 65, 115003. <https://doi.org/10.1088/1361-6560/ab8579>
+- Literature overview: [`report/literature_review.md`](report/literature_review.md)
+
+Licence: GPL-3.0 ([license.md](license.md)).
