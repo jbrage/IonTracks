@@ -19,8 +19,9 @@ This is a blind prediction: no model input is adjusted to the recombination data
   - H1: the counts as recorded;
   - H2: constant dose per pulse, i.e. the repetition rate scales with the dose rate. H2 is
     motivated by the counter's apparent ~120 Hz ceiling, which shows in the same file.
-* Gas: Gas.air at 20 C (assumed; not in the data) and 1014.38 hPa. No free electrons and no space
-  charge (outside v4's scope; see the report).
+* Gas: Gas.air(particle="electron") at 20 C (assumed; not in the data) and 1014.38 hPa.
+* Physics: the prediction uses the default model (free electrons after Goetz et al., space
+  charge). The classic model (neither) is shown for comparison under H2.
 
 Observables (no gap offset or inverse-square correction needed):
 * the field ratio Q(d, E) / Q(d, 40 V/mm) for E = 20 and 10 V/mm, at fixed beam, dose rate and gap;
@@ -34,12 +35,11 @@ import math
 import time
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import plotstyle  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
+from plotstyle import AXIS, INK2, S1, S2, S3, SURFACE  # noqa: E402
 
 from iontracks import (  # noqa: E402
     Gas,
@@ -71,26 +71,15 @@ PULSE_FILES = {
     ("10 FFF", 400): ("10475",),
     ("10 FFF", 2400): ("10477",),
 }
-MODEL = Uniform1D(Grid1D(n_cells=200))
-GAS = Gas.air(T_K=T_K, p_hPa=P_HPA)
+MODELS = {
+    "full": Uniform1D(Grid1D(n_cells=200)),
+    "classic": Uniform1D(Grid1D(n_cells=200), free_electrons=False, space_charge=False),
+    "fe": Uniform1D(Grid1D(n_cells=200), space_charge=False),
+    "sc": Uniform1D(Grid1D(n_cells=200), free_electrons=False),
+}
+GAS = Gas.air(T_K=T_K, p_hPa=P_HPA, particle="electron")
 
-# ------------------------------------------------------------------ style (as run_validation.py)
-INK, INK2, MUTED, GRID, AXIS, SURFACE, SHADE = (
-    "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7", "#fcfcfb", "#f0efec",
-)  # fmt: skip
-S1, S2, S3 = "#2a78d6", "#eb6834", "#1baf7a"
-plt.rcParams.update(
-    {
-        "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
-        "axes.edgecolor": AXIS, "axes.linewidth": 0.8, "axes.labelcolor": INK2,
-        "axes.titlecolor": INK, "axes.titlesize": 10, "axes.titleweight": "semibold",
-        "axes.titlelocation": "left", "axes.grid": True, "axes.spines.top": False,
-        "axes.spines.right": False, "grid.color": GRID, "grid.linewidth": 0.6,
-        "xtick.color": AXIS, "ytick.color": AXIS, "xtick.labelcolor": INK2,
-        "ytick.labelcolor": INK2, "font.size": 9, "font.family": ["Segoe UI", "DejaVu Sans"],
-        "lines.linewidth": 1.6, "lines.markersize": 6, "legend.frameon": False, "legend.fontsize": 8,
-    }
-)  # fmt: skip
+plotstyle.apply()
 FIELD_COLOR = {40: S1, 20: S2, 10: S3}
 SETTING_MARKER = {
     ("16 MeV", 100): "o",
@@ -147,17 +136,17 @@ def k_di(d_mm):
 _CACHE: dict = {}
 
 
-def efficiency(d_mm, field_V_mm, n0, n_pulses, period_s, tau_s=TAU_S):
+def efficiency(d_mm, field_V_mm, n0, n_pulses, period_s, tau_s=TAU_S, physics="full"):
     """Collection efficiency (general recombination) of the whole 50 MU pulse train."""
-    key = (d_mm, field_V_mm, round(n0, -3), round(n_pulses), round(period_s, 9), tau_s)
+    key = (d_mm, field_V_mm, round(n0, -3), round(n_pulses), round(period_s, 9), tau_s, physics)
     if key not in _CACHE:
         chamber = ParallelPlateChamber(d_mm / 10, field_V_mm * d_mm)
         source = PiecewiseConstant.pulse_train(n0, tau_s, period_s, round(n_pulses))
-        _CACHE[key] = solve_point(source, chamber, GAS, MODEL).f_recombination
+        _CACHE[key] = solve_point(source, chamber, GAS, MODELS[physics]).f_recombination
     return _CACHE[key]
 
 
-def ionisation_per_mu(q, beam, pulses):
+def ionisation_per_mu(q, beam, pulses, physics="full"):
     """Saturation ion pairs per cm^3 per MU from the low-dose-rate slope at 0.5-1 mm, 40 V/mm."""
     low = BEAMS[beam][0]
     n_pulses, period = pulses[(beam, low)]
@@ -168,8 +157,8 @@ def ionisation_per_mu(q, beam, pulses):
     for _ in range(4):
         per_cm3 = (q2 / f2 - q1 / f1) * 1e-9 / (ELEMENTARY_CHARGE_C * AREA_CM2 * (d2 - d1) / 10)
         n0 = per_cm3 / n_pulses
-        f1 = efficiency(d1, 40, n0, n_pulses, period)
-        f2 = efficiency(d2, 40, n0, n_pulses, period)
+        f1 = efficiency(d1, 40, n0, n_pulses, period, physics=physics)
+        f2 = efficiency(d2, 40, n0, n_pulses, period, physics=physics)
     return per_cm3 / MU, (1 - f1, 1 - f2)
 
 
@@ -191,8 +180,11 @@ def main():
     counts, pulse_rows = load_pulses()
     structures = pulse_structures(counts)
     per_mu, cal_loss = {}, {}
+    ion = {k: {} for k in ("classic", "fe", "sc")}
     for beam in BEAMS:
         per_mu[beam], cal_loss[beam] = ionisation_per_mu(q, beam, structures["H2"])
+        for k in ion:
+            ion[k][beam], _ = ionisation_per_mu(q, beam, structures["H2"], k)
         print(f"{beam}: saturation ionisation {per_mu[beam]:.3e} ion pairs/cm^3 per MU "
               f"(model loss at the calibration gaps {cal_loss[beam][0]:.2%}, {cal_loss[beam][1]:.2%})")  # fmt: skip
 
@@ -213,12 +205,20 @@ def main():
                 for d in GAPS
                 for E in FIELDS
             }
-            for h, struct in structures.items():
+            # H1, H2: default physics; under H2 also classic, free electrons only, space charge only
+            for h, struct, physics, calib in (
+                ("H1", structures["H1"], "full", per_mu),
+                ("H2", structures["H2"], "full", per_mu),
+                ("H2c", structures["H2"], "classic", ion["classic"]),
+                ("H2fe", structures["H2"], "fe", ion["fe"]),
+                ("H2sc", structures["H2"], "sc", ion["sc"]),
+            ):
                 n_pulses, period = struct[(beam, rate)]
-                n0 = per_mu[beam] * MU / n_pulses
+                n0 = calib[beam] * MU / n_pulses
                 s["n0"][h], s["period"][h] = n0, period
                 s["pred"][h] = {
-                    (d, E, v): efficiency(d, E, n0 * (1 + v * N0_REL), n_pulses, period)
+                    (d, E, v): efficiency(d, E, n0 * (1 + v * N0_REL), n_pulses, period,
+                                          physics=physics)
                     for d in GAPS
                     for E in FIELDS
                     for v in (-1, 0, 1)
@@ -240,7 +240,7 @@ def main():
                 err = m * math.hypot(sig_q / s["meas"][(d, E)], sig_q / s["meas"][(d, 40)])
                 pred = {
                     h: [s["pred"][h][(d, E, v)] / s["pred"][h][(d, 40, v)] for v in (-1, 0, 1)]
-                    for h in structures
+                    for h in s["pred"]
                 }  # fmt: skip
                 s["ratio"][(d, E)] = {"meas": m, "err": err, "pred": pred}
     dr = []
@@ -252,7 +252,7 @@ def main():
                 m = s_hi["meas"][(d, E)] / s_lo["meas"][(d, E)]
                 err = m * math.hypot(sig_q / s_hi["meas"][(d, E)], sig_q / s_lo["meas"][(d, E)])
                 pred = {
-                    h: s_hi["pred"][h][(d, E, 0)] / s_lo["pred"][h][(d, E, 0)] for h in structures
+                    h: s_hi["pred"][h][(d, E, 0)] / s_lo["pred"][h][(d, E, 0)] for h in s_hi["pred"]
                 }
                 dr.append({"beam": beam, "d": d, "E": E, "meas": m, "err": err, "pred": pred})
 
@@ -291,7 +291,7 @@ def main():
 def summary(settings, h):
     res = np.array([
         r["meas"] - r["pred"][h][1] for s in settings for r in s["ratio"].values()
-        if h == "H2" or s["rate"] == BEAMS[s["beam"]][1]
+        if h != "H1" or s["rate"] == BEAMS[s["beam"]][1]
     ])  # fmt: skip
     return res
 
@@ -307,12 +307,14 @@ def make_figure(settings, dr):
             pred = np.array([x["pred"]["H2"] for x in r])
             a.fill_between(xg, pred.min(axis=1), pred.max(axis=1), color=c, alpha=0.18, lw=0)
             a.plot(xg, pred[:, 1], color=c, lw=1.2)
+            a.plot(xg, [x["pred"]["H2c"][1] for x in r], color=c, lw=1.0, ls=":")
             if high:
                 a.plot(xg, [x["pred"]["H1"][1] for x in r], color=c, lw=1.0, ls=(0, (4, 3)))
             a.errorbar(xg, [x["meas"] for x in r], yerr=[2 * x["err"] for x in r], fmt="o", color=c,
                        ms=5, capsize=2, label=f"{E} V/mm, measured")  # fmt: skip
         a.plot([], [], color=INK2, lw=1.2, label="v4 prediction" + (", H2" if high else ""))
         a.fill_between([], [], [], color=INK2, alpha=0.18, lw=0, label=f"ionisation ± {N0_REL:.0%}")
+        a.plot([], [], color=INK2, lw=1.0, ls=":", label="classic model (H2)")
         if high:
             a.plot(
                 [],
@@ -379,6 +381,8 @@ def make_figure(settings, dr):
             [], [], color=INK2, marker="o", ls="", mfc=SURFACE, ms=5, label="hollow: pulses overlap"
         )
     )
+    lo_, hi_ = a.get_ylim()
+    a.set_ylim(lo_ - 0.9 * (hi_ - lo_), hi_)
     a.legend(handles=handles, loc="lower left", ncol=2)
     a.set(xscale="log", xlabel="electrode gap d (mm)", ylabel="measured − predicted field ratio (%)",
           title="(f) Residuals (H2): bars = 2σ reading, shade = ionisation ± 10 %")  # fmt: skip
@@ -424,22 +428,36 @@ def write_report(
     )
     res2 = summary(settings, "H2")
     res1 = summary(settings, "H1")
+    res2c = summary(settings, "H2c")
+
+    def region(h, keep):
+        return np.array([
+            s["ratio"][(d, E)]["meas"] - s["ratio"][(d, E)]["pred"][h][1]
+            for s in settings for d in GAPS if keep(s, d) for E in FIELDS[1:]
+        ])  # fmt: skip
+
+    variants = ("H2", "H2fe", "H2sc", "H2c")
+    decomp_rows = []
+    for label, keep in (
+        ("all 48 ratios, RMS", lambda s, d: True),
+        ("gaps ≤ 2 mm, mean", lambda s, d: d <= 2),
+        ("gaps 5–10 mm, mean", lambda s, d: d >= 5),
+        ("overlap at 10 V/mm (t_c > T), mean", lambda s, d: overlap(d, 10, s["period"]["H2"]) > 1),
+    ):
+        vals = [region(h, keep) for h in variants]
+        if label.endswith("RMS"):
+            cells = [f"{np.sqrt(np.mean(v**2)) * 100:.2f} %" for v in vals]
+        else:
+            cells = [f"{np.mean(v) * 100:+.2f} %" for v in vals]
+        decomp_rows.append(f"   | {label} | " + " | ".join(cells) + " |")
+    decomp = chr(10).join(decomp_rows)
+    captured_v = {}
     within = sum(
         int(min(r["pred"]["H2"]) - 2 * r["err"] <= r["meas"] <= max(r["pred"]["H2"]) + 2 * r["err"])
         for s in settings
         for r in s["ratio"].values()
     )
     n_ratio = sum(len(s["ratio"]) for s in settings)
-    small = np.array([
-        s["ratio"][(d, E)]["meas"] - s["ratio"][(d, E)]["pred"]["H2"][1]
-        for s in settings for d in GAPS if d <= 2 for E in FIELDS[1:]
-    ])  # fmt: skip
-    big = np.array([
-        s["ratio"][(d, E)]["meas"] - s["ratio"][(d, E)]["pred"]["H2"][1]
-        for s in settings for d in GAPS if d >= 5 for E in FIELDS[1:]
-    ])  # fmt: skip
-    ov = [(s, d) for s in settings for d in GAPS if overlap(d, 10, s["period"]["H2"]) > 1]
-    ov_res = [s["ratio"][(d, 10)]["meas"] - s["ratio"][(d, 10)]["pred"]["H2"][1] for s, d in ov]
     dr1 = np.array([r["meas"] - r["pred"]["H1"] for r in dr])
     high_period = {b: structures["H2"][(b, rates[1])][1] for b, rates in BEAMS.items()}
     dr_ov = [overlap(r["d"], r["E"], high_period[r["beam"]]) > 1 for r in dr]
@@ -450,6 +468,9 @@ def write_report(
     )
     dr_ffF10 = next(r for r in dr if r["beam"] == "10 FFF" and r["d"] == 10.0 and r["E"] == 10)
     captured = (1 - dr_ffF10["pred"]["H2"]) / (1 - dr_ffF10["meas"])
+    captured_c = (1 - dr_ffF10["pred"]["H2c"]) / (1 - dr_ffF10["meas"])
+    for h in ("H2", "H2fe", "H2sc", "H2c"):
+        captured_v[h] = (1 - dr_ffF10["pred"][h]) / (1 - dr_ffF10["meas"])
     dr40 = [r["meas"] for r in dr if r["E"] == 40]
     dr40_h1 = [r["pred"]["H1"] for r in dr if r["E"] == 40]
     u_max = max(boag_u(d, 10, s["n0"]["H2"]) for s in settings for d in GAPS)
@@ -508,6 +529,15 @@ already drops at 600 MU/min (implied 99 Hz), so the file alone does not settle t
 
 H2 was set up from the pulse file before comparing with the charges, and both are reported.
 
+Independent support for H2 comes from [White et al. 2026](https://doi.org/10.1002/acm2.70670),
+who counted TrueBeam pulses with a plastic scintillator (500 µs sampling):
+- 6 MV: 35.5 pulses per MU at 400 MU/min, against 11.5 in this file at the same setting;
+- 10 MV FFF: 7.9 pulses per MU at 400 MU/min, against 7.4 in this file;
+- a maximum repetition rate of 360 Hz and pulses of about 3 µs.
+
+At a constant dose per pulse, 2400 MU/min then needs about 300 Hz, which the machine can deliver.
+The pulse file's 116 Hz is therefore an undercount.
+
 | Beam | MU/min | recorded pulses per 50 MU | recorded rate (Hz) | H2 pulses per 50 MU | H2 rate (Hz) | dose per pulse in air, H1 (mGy) | H2 (mGy) |
 |---|---|---|---|---|---|---|---|
 {setting_rows}
@@ -526,18 +556,31 @@ H2 was set up from the pulse file before comparing with the charges, and both ar
 2. **Field ratios (H2).** All {n_ratio} ratios are reproduced to within
    {np.max(np.abs(res2)) * 100:.1f} % (RMS {np.sqrt(np.mean(res2**2)) * 100:.1f} %), with losses
    from 1 % to 45 %. {within} of {n_ratio} lie inside the ionisation band widened by twice the
-   reading resolution. Under H1 the high-dose-rate ratios deviate by up to
-   {np.max(np.abs(res1)) * 100:.0f} %.
-3. **The residuals are systematic, not random.**
-   - At gaps ≤ 2 mm, the measured loss is smaller than predicted (mean residual
-     {np.mean(small) * 100:+.1f} %). Free electrons would do this: they are collected before
-     attaching, and their share grows as the gap shrinks. v4 does not model free electrons yet.
-   - At 5–10 mm, the mean residual is {np.mean(big) * 100:+.1f} %.
-   - Where consecutive pulses overlap ({len(ov)} gap/setting combinations at 10 V/mm, all at the
-     high dose rates), the measured loss exceeds the prediction by up to
-     {-min(ov_res) * 100:.1f} %. At these points Boag's u reaches {u_max:.1f}, where space charge
-     (≈ 3.9 u for air) is certainly not negligible.
-4. **Pulse overlap is predicted, but not all of it.** Under H2 the 10 FFF 2400 MU/min pulses come
+   reading resolution. The classic model (no free electrons, no space charge) reaches
+   {np.max(np.abs(res2c)) * 100:.1f} % (RMS {np.sqrt(np.mean(res2c**2)) * 100:.1f} %). Under H1 the
+   high-dose-rate ratios deviate by up to {np.max(np.abs(res1)) * 100:.0f} %.
+3. **Which physics does what.** Residual = measured − predicted field ratio (positive: less loss
+   was measured than predicted), for the default model and with each effect switched off:
+
+   | Ratios | default (free e⁻ + space charge) | free electrons only | space charge only | classic |
+   |---|---|---|---|---|
+{decomp}
+   | overlap: share of the measured extra loss at 10 mm, 10 V/mm (10 FFF) | {captured_v["H2"]:.0%} | {captured_v["H2fe"]:.0%} | {captured_v["H2sc"]:.0%} | {captured_v["H2c"]:.0%} |
+
+   - **Free electrons hardly matter here.** At 100–400 V/cm the attachment length is only
+     10–40 µm, so few electrons escape. Their columns are close to the classic ones.
+   - **Space charge decides both the good and the bad.** Boag's u reaches {u_max:.1f} and the
+     space-charge parameter is ≈ 3.9 u, so space charge adds loss wherever the ion density is
+     high relative to the field.
+     - Good: it reproduces the extra loss from overlapping pulses at fixed dose per pulse (the
+       last row).
+     - Bad: it also adds about 2 % of loss to the field ratios at 5–10 mm, where the classic
+       model agrees better.
+
+     The field model is laterally uniform, 1D Gauss. The ion parameters (Boag's µ± and α) set
+     the space-charge strength through u. So this benchmark cannot separate a too-strong
+     space-charge model from unsuitable ion parameters.
+4. **Pulse overlap.** Under H2 the 10 FFF 2400 MU/min pulses come
    every {structures["H2"][("10 FFF", 2400)][1] * 1e3:.1f} ms, against a positive-ion transit time
    of 7.4 ms at 10 mm and 10 V/mm. The dose per pulse is the same at both dose rates. The field
    ratio there is:
@@ -547,22 +590,21 @@ H2 was set up from the pulse file before comparing with the charges, and both ar
    - measured: {next(s for s in settings if s["key"] == ("10 FFF", 400))["ratio"][(10.0, 10)]["meas"]:.3f}
      and {next(s for s in settings if s["key"] == ("10 FFF", 2400))["ratio"][(10.0, 10)]["meas"]:.3f}.
 
-   The model gives {captured:.0%} of the measured extra loss (dose-rate ratio
-   {dr_ffF10["pred"]["H2"]:.3f} against {dr_ffF10["meas"]:.3f}). Treating each pulse in isolation,
-   as the AMM scripts do, predicts none of it. Two effects would widen the gap:
-   - The H2 repetition rate is inferred (six times the 400 MU/min count), not measured. If that
-     count is also low, the true rate is higher and the pulses overlap more.
-   - Space charge is largest at exactly these points.
-
-   A pulse count that resolves > 120 Hz would separate the two.
+   The default model gives {captured:.0%} of the measured extra loss (dose-rate ratio
+   {dr_ffF10["pred"]["H2"]:.3f} against {dr_ffF10["meas"]:.3f}), and the classic model
+   {captured_c:.0%}. Treating each pulse in isolation, as the AMM scripts do, predicts none of it.
+   The H2 repetition rate is inferred (six times the 400 MU/min count), not measured. A pulse
+   count that resolves > 120 Hz would test it directly.
 
 ## Validity
 
-- **Missing physics.** v4 has neither free electrons nor space charge. For pulses, the field of
-  the separated charge relative to the applied field is e n₀ d / (ε₀ E) ≈ 3.9 u in air. It
-  exceeds 1 wherever u ≳ 0.25, which includes most of the 5–10 mm points. That the field ratios
-  still agree within a few per cent there supports Boag-type modelling for this regime. It is not
-  evidence that space charge is negligible.
+- **Free electrons.** The fields here are 100–400 V/cm. The Götz attachment parameterisation is
+  stated for ≥ 1000 V/cm (with one value at 500 V/cm), so it is extrapolated at every point of
+  this benchmark. Boag's α and mobilities may also partly contain free-electron effects already
+  (see the DCPT benchmark), so the free-electron part is the least certain input.
+- **Space charge.** For pulses the field of the separated charge relative to the applied field is
+  e n₀ d / (ε₀ E) ≈ 3.9 u in air, which exceeds 1 at most 5–10 mm points. The model solves
+  Gauss's law for the laterally uniform ion charge.
 - **Numerics.** Going from 200 to 400 cells changes 1 − f by ≤ {grid_dev:.1e} (relative) at the
   smallest and largest loss. The pulse width does not matter: pulses of 2–6 µs are much shorter
   than the transit times (≥ 90 µs).

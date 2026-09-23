@@ -11,6 +11,8 @@ Every figure compares the implementation against an independent reference:
   fig4  steady-state skipping against full stepping, its cost, and grid convergence
   fig5  synthetic 250 MeV cyclotron PBS field (2 mm, 200 V): k_s against quasi-static Boag,
         the transient effect, the k_s map, the current trace, and lateral convergence
+  fig8  free electrons (exact fraction, Fenwick-Kumar exact solution) and space charge
+        (onset scaling, field screening)
 
 Writes validation/figures/*.png and validation/VALIDATION.md (with a table of quantitative
 checks). Run from the repository root:  python validation/run_validation.py   (~1-2 min)
@@ -20,12 +22,22 @@ import math
 import time
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
-from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
+import plotstyle  # noqa: E402
+from plotstyle import (  # noqa: E402
+    AXIS,
+    INK2,
+    LIMIT,
+    MUTED,
+    S1,
+    S2,
+    S3,
+    SEQUENTIAL,
+    SHADE,
+    SURFACE,
+    THEORY,
+)
 
 from iontracks import (  # noqa: E402
     Gas,
@@ -39,60 +51,25 @@ from iontracks import (  # noqa: E402
 from iontracks.analytic import (  # noqa: E402
     boag_continuous_xi2,
     boag_pulsed_f,
+    boag_pulsed_free_electron_f,
     boag_pulsed_u,
     boag_quasi_static_loss,
     space_charge_parameter,
+    space_charge_parameter_pulsed,
 )
 from iontracks.constants import ELEMENTARY_CHARGE_C  # noqa: E402
-from iontracks.solvers.uniform1d import _react, _transport  # noqa: E402
+from iontracks.solvers.kernels import react as _react  # noqa: E402
+from iontracks.solvers.kernels import transport as _transport  # noqa: E402
 from iontracks.synthetic import (  # noqa: E402
     PROTON_250MEV_S_AIR_MEV_CM2_G,
     PROTON_250MEV_S_WATER_MEV_CM2_G,
-    W_AIR_PROTONS_EV,
     cyclotron_pbs_field,
 )
 
 OUT = Path(__file__).resolve().parent
 FIG = OUT / "figures"
 
-# ------------------------------------------------------------------ style (reference palette)
-INK, INK2, MUTED = "#0b0b0b", "#52514e", "#898781"
-GRID, AXIS, SURFACE, SHADE = "#e1e0d9", "#c3c2b7", "#fcfcfb", "#f0efec"
-S1, S2, S3 = "#2a78d6", "#eb6834", "#1baf7a"
-BLUE_RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
-plt.rcParams.update(
-    {
-        "figure.facecolor": SURFACE,
-        "axes.facecolor": SURFACE,
-        "savefig.facecolor": SURFACE,
-        "axes.edgecolor": AXIS,
-        "axes.linewidth": 0.8,
-        "axes.labelcolor": INK2,
-        "axes.titlecolor": INK,
-        "axes.titlesize": 10,
-        "axes.titleweight": "semibold",
-        "axes.titlelocation": "left",
-        "axes.grid": True,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "grid.color": GRID,
-        "grid.linewidth": 0.6,
-        "grid.linestyle": "-",
-        "xtick.color": AXIS,
-        "ytick.color": AXIS,
-        "xtick.labelcolor": INK2,
-        "ytick.labelcolor": INK2,
-        "text.color": INK,
-        "font.size": 9,
-        "font.family": ["Segoe UI", "DejaVu Sans"],
-        "lines.linewidth": 1.6,
-        "lines.markersize": 6,
-        "legend.frameon": False,
-        "legend.fontsize": 8,
-    }
-)
-THEORY = {"color": INK, "lw": 1.0}
-LIMIT = {"color": MUTED, "lw": 1.0, "ls": (0, (4, 3))}
+plotstyle.apply()
 
 CHECKS: list[dict] = []
 
@@ -120,11 +97,16 @@ def save(fig, name: str) -> None:
 
 # ------------------------------------------------------------------ shared set-up
 CH = ParallelPlateChamber(gap_cm=0.2, voltage_V=200.0, sensitive_radius_cm=0.78)
-GAS = Gas.air(W_eV=W_AIR_PROTONS_EV)
+GAS = Gas.air(particle="proton")
 GAS0 = GAS.with_(D_pos_cm2_s=0.0, D_neg_cm2_s=0.0)  # Boag's theories neglect diffusion
 V_POS, V_NEG = CH.drift_velocities_cm_s(GAS)
 T_C = CH.gap_cm / V_POS  # slow (positive) ion transit time
 INSTANT = 1e-12
+
+
+def boag_model(**grid) -> Uniform1D:
+    """Point model of Boag's classic theories: no free electrons, uniform field."""
+    return Uniform1D(Grid1D(**grid), free_electrons=False, space_charge=False)
 
 
 def boag_profiles(z, t, n0, alpha):
@@ -167,7 +149,7 @@ def figure1():
     u_unit = boag_pulsed_u(1.0, CH, GAS0)
 
     # (a) Boag pulsed
-    model = Uniform1D(Grid1D(n_cells=400))
+    model = boag_model(n_cells=400)
     u_sim = np.logspace(-2, 2, 9)
     f_sim, rel = [], []
     for u in u_sim:
@@ -191,7 +173,7 @@ def figure1():
         f_b = boag_pulsed_f(u / u_unit, CH, GAS0)
         err = []
         for n in cells:
-            ep = Uniform1D(Grid1D(n_cells=int(n))).run_episode(
+            ep = boag_model(n_cells=int(n)).run_episode(
                 PiecewiseConstant.pulse(u / u_unit, 0, INSTANT), CH, GAS0
             )
             err.append(abs((1 - ep.f_recombination) / (1 - f_b) - 1))
@@ -207,7 +189,7 @@ def figure1():
     a = ax[1, 0]
     xi2s = np.logspace(-4, -0.5, 8)
     ratios = []
-    model = Uniform1D(Grid1D(n_cells=200))
+    model = boag_model(n_cells=200)
     for xi2 in xi2s:
         q = xi2 / boag_continuous_xi2(1.0, CH, GAS0)
         ep = model.run_episode(PiecewiseConstant.constant(q, 0, 8 * T_C), CH, GAS0)
@@ -231,7 +213,7 @@ def figure1():
     cons, ramo = [], []
     for _ in range(60):
         ch = ParallelPlateChamber(rng.uniform(0.05, 0.3), rng.uniform(50, 500))
-        gas = Gas.air() if rng.random() < 0.7 else Gas.air_legacy()
+        gas = Gas.air(particle="electron") if rng.random() < 0.7 else Gas.air_legacy()
         tc = ch.gap_cm / (gas.mu_pos_cm2_Vs * ch.field_V_cm)
         n_pairs = gas.ion_pairs_per_cm3_per_Gy() * 10 ** rng.uniform(-3, 0.5)
         kind = rng.integers(3)
@@ -241,12 +223,19 @@ def figure1():
             src = PiecewiseConstant.constant(n_pairs / tc, 0, tc * rng.uniform(0.5, 20))
         else:
             src = PiecewiseConstant.pulse_train(n_pairs, tc * 1e-3, tc * rng.uniform(0.05, 2), 10)
-        ep = Uniform1D(Grid1D(n_cells=int(rng.integers(40, 300)))).run_episode(src, ch, gas)
+        physics = {
+            "free_electrons": gas.has_free_electrons and rng.random() < 0.5,
+            "space_charge": bool(rng.random() < 0.5),
+        }
+        ep = Uniform1D(Grid1D(n_cells=int(rng.integers(40, 300))), **physics).run_episode(
+            src, ch, gas
+        )
         cons.append(
             abs(ep.produced_cm2 - ep.recombined_cm2 - ep.collected_pos_cm2 - ep.remaining_cm2)
             / ep.produced_cm2
         )
-        ramo.append(abs(ep.signal_cm2 - ep.collected_pos_cm2) / ep.produced_cm2)
+        net = ep.collected_pos_cm2 - ep.backflow_pos_cm2 - ep.backflow_neg_cm2
+        ramo.append(abs(ep.signal_cm2 - net) / ep.produced_cm2)
     cons = np.maximum(cons, 1e-17)
     ramo = np.maximum(ramo, 1e-17)
     a = ax[1, 1]
@@ -271,7 +260,7 @@ def figure2():
     fig, ax = plt.subplots(2, 2, figsize=(10, 7.4))
     u = 2.0
     n0 = u / boag_pulsed_u(1.0, CH, GAS0)
-    model = Uniform1D(Grid1D(n_cells=400))
+    model = boag_model(n_cells=400)
     times = [0.1 * T_C, 0.25 * T_C, 0.5 * T_C]
     z, prof, st = step_profiles(model, n0, GAS0, times)
     zf = np.linspace(0, CH.gap_cm, 4001)
@@ -282,7 +271,7 @@ def figure2():
             exact = boag_profiles(zf, t, n0, GAS0.alpha_cm3_s)[species]
             sim = prof[t][species]
             a.plot(zf / CH.gap_cm, exact / n0, **THEORY)
-            a.plot(z / CH.gap_cm, sim / n0, color=color, label=f"t = {t / T_C:.2f} t꜀")
+            a.plot(z / CH.gap_cm, sim / n0, color=color, label=f"t = {t / T_C:.2f} $t_c$")
             ex_cells = boag_profiles(z, t, n0, GAS0.alpha_cm3_s)[species]
             l1.append(np.abs(sim - ex_cells).sum() / ex_cells.sum())
         a.plot([], [], **THEORY, label="exact (Boag model)")
@@ -350,7 +339,7 @@ def figure2():
         check(f"induced current vs exact, {'alpha = 0' if u_i == 0 else 'u = 2'}: max |dI| / I(0)",
               float(np.abs(i_sim - i_exact).max()), 0.01)  # fmt: skip
     a.plot([], [], **THEORY, label="exact (Boag model)")
-    a.set(xlabel="t / t꜀ (slow-ion transit time)", ylabel="I(t) / I(0)",
+    a.set(xlabel="t / $t_c$ (slow-ion transit time)", ylabel="I(t) / I(0)",
           title="(d) Induced (Ramo–Shockley) current after a pulse")  # fmt: skip
     a.legend(loc="upper right")
 
@@ -364,7 +353,7 @@ def figure2():
 def figure3():
     print("fig3: time structure")
     fig, ax = plt.subplots(2, 2, figsize=(10, 7.4))
-    model = Uniform1D(Grid1D(n_cells=200))
+    model = boag_model(n_cells=200)
     u_unit = boag_pulsed_u(1.0, CH, GAS0)
     xi2_unit = boag_continuous_xi2(1.0, CH, GAS0)
 
@@ -383,7 +372,7 @@ def figure3():
     a.axhline(1 - boag_pulsed_f(n0, CH, GAS0), **LIMIT, label="short-pulse limit: Boag pulsed")
     a.plot(tau_line / T_C, xi2 / (1 + xi2), **THEORY, label="long-pulse limit: Boag continuous")
     a.plot(taus / T_C, loss, "o", color=S1, label="IonTracks")
-    a.set(xscale="log", yscale="log", ylim=(3e-3, 0.6), xlabel="pulse width τ / t꜀",
+    a.set(xscale="log", yscale="log", ylim=(3e-3, 0.6), xlabel="pulse width τ / $t_c$",
           ylabel="recombination loss 1 − f", title="(a) One pulse, same charge, varying width")  # fmt: skip
     a.legend(loc="lower left")
     check("short pulse (1e-3 t_c): rel. deviation from Boag pulsed",
@@ -425,11 +414,11 @@ def figure3():
     a.plot(
         p_line / T_C, cont, color=S3, lw=1.2, label="continuous beam at the mean rate (IonTracks)"
     )
-    a.plot(periods / T_C, loss, "o", color=S1, label="IonTracks pulse train (≥ 30 t꜀)")
+    a.plot(periods / T_C, loss, "o", color=S1, label="IonTracks pulse train (≥ 30 $t_c$)")
     mem = model.memory_time_s(CH, GAS0) / T_C
     a.axvline(mem, color=AXIS, lw=0.8)
     a.text(mem * 1.08, 0.3, "memory time:\nepisodes split", color=INK2, fontsize=7.5)
-    a.set(xscale="log", yscale="log", xlabel="pulse period T / t꜀",
+    a.set(xscale="log", yscale="log", xlabel="pulse period T / $t_c$",
           ylabel="recombination loss 1 − f", title="(b) Pulse train, same dose per pulse (u = 0.5)")  # fmt: skip
     a.legend(loc="lower left")
     check(
@@ -451,7 +440,7 @@ def figure3():
     q = xi2_target / xi2_unit
     t_off = 4 * T_C
     src = PiecewiseConstant.constant(q, 0, t_off)
-    full = Uniform1D(Grid1D(n_cells=400, steady_state_tolerance=0.0))
+    full = boag_model(n_cells=400, steady_state_tolerance=0.0)
     ep = full.run_episode(src, CH, GAS0)
     ep0 = full.run_episode(src, CH, GAS0.with_(alpha_cm3_s=0.0))
     t = 0.5 * (ep.record_edges_s[:-1] + ep.record_edges_s[1:])
@@ -482,7 +471,7 @@ def figure3():
         t / T_C, ep.current_density_A_cm2 / i_sat, color=S2, label=f"IonTracks, ξ² = {xi2_target}"
     )
     a.plot(t0 / T_C, i_exact(t0), **THEORY, label="exact, no recombination")
-    a.set(xlabel="t / t꜀  (beam on in the shaded window)", ylabel="I(t) / I_sat",
+    a.set(xlabel="t / $t_c$  (beam on in the shaded window)", ylabel="I(t) / I_sat",
           title="(c) Current build-up and drain, continuous beam")  # fmt: skip
     a.legend(loc="lower center")
     check("continuous switch-on/off current (alpha = 0) vs exact: max |dI| / I_sat",
@@ -493,9 +482,9 @@ def figure3():
     a.axvspan(0, t_off / T_C, color=SHADE, lw=0)
     a.axhline(xi2_target / (1 + xi2_target), **LIMIT, label="Boag steady state ξ²/(1+ξ²)")
     a.plot(t / T_C, rec_rate, color=S2, label="IonTracks")
-    a.set(xlabel="t / t꜀  (beam on in the shaded window)",
+    a.set(xlabel="t / $t_c$  (beam on in the shaded window)",
           ylabel="recombination rate / production rate (steady)",
-          title="(d) Recombination rate: build-up over ~t꜀, drain after beam-off")  # fmt: skip
+          title="(d) Recombination rate: build-up over ~$t_c$, drain after beam-off")  # fmt: skip
     a.legend(loc="lower center")
 
     fig.suptitle("Figure 3 · Time structure between the analytic limits", x=0.01, ha="left",
@@ -515,8 +504,8 @@ def figure4():
     src = PiecewiseConstant.from_intervals(
         starts, starts + durations, q * np.array([1.0, 3.0, 0.5])
     )
-    fast = Uniform1D(Grid1D(n_cells=200)).run_episode(src, CH, GAS)
-    full = Uniform1D(Grid1D(n_cells=200, steady_state_tolerance=0.0)).run_episode(src, CH, GAS)
+    fast = boag_model(n_cells=200).run_episode(src, CH, GAS)
+    full = boag_model(n_cells=200, steady_state_tolerance=0.0).run_episode(src, CH, GAS)
     edges = np.linspace(0, full.n_steps * full.dt_s, 2001)
     to_current = ELEMENTARY_CHARGE_C / np.diff(edges) * 1e9  # nA/cm^2
     j_fast = np.diff(fast.cumulative("induced", edges)) * to_current
@@ -551,7 +540,7 @@ def figure4():
     for dur in durations:
         s = PiecewiseConstant.constant(q, 0, dur)
         for tol, steps, wall in ((1e-12, sim_fast, wall_fast), (0.0, sim_full, wall_full)):
-            m = Uniform1D(Grid1D(n_cells=200, steady_state_tolerance=tol))
+            m = boag_model(n_cells=200, steady_state_tolerance=tol)
             t0 = time.perf_counter()
             steps.append(m.run_episode(s, CH, GAS).simulated_steps)
             wall.append(time.perf_counter() - t0)
@@ -561,7 +550,7 @@ def figure4():
                xytext=(-10, 6), ha="right", color=INK2, fontsize=8)  # fmt: skip
     a.annotate(f"{wall_fast[-1] * 1e3:.1f} ms", (durations[-1] / T_C, sim_fast[-1]),
                textcoords="offset points", xytext=(-10, 6), ha="right", color=INK2, fontsize=8)  # fmt: skip
-    a.set(xscale="log", yscale="log", xlabel="duration of a constant-rate segment / t꜀",
+    a.set(xscale="log", yscale="log", xlabel="duration of a constant-rate segment / $t_c$",
           ylabel="time steps computed", title="(c) Cost of a long constant segment (200 cells)")  # fmt: skip
     a.legend(loc="upper left")
 
@@ -570,9 +559,7 @@ def figure4():
     cells = [50, 100, 200, 400, 800]
     for current, color in ((2.0, S1), (10.0, S2)):
         field = cyclotron_pbs_field(beam_current_nA=current)
-        ks = [
-            solve_field(field, CH, GAS, Uniform1D(Grid1D(n_cells=n)), points=pts).ks for n in cells
-        ]
+        ks = [solve_field(field, CH, GAS, boag_model(n_cells=n), points=pts).ks for n in cells]
         dev = np.abs((np.array(ks[:-1]) - 1) / (ks[-1] - 1) - 1)
         a.plot(cells[:-1], dev, "o-", color=color, label=f"synthetic field, {current:g} nA")
         if current == 2.0:
@@ -591,7 +578,7 @@ def figure4():
 def figure5():
     print("fig5: synthetic 250 MeV cyclotron field, 2 mm / 200 V")
     fig, ax = plt.subplots(2, 3, figsize=(14, 7.6))
-    model = Uniform1D(Grid1D(n_cells=200))
+    model = boag_model(n_cells=200)
     pts = CH.sample_points(4, 8)
     currents = np.array([1.0, 2.0, 5.0, 10.0, 30.0, 100.0, 300.0, 800.0])
     ks, ks_qs, eta, dwell = [], [], [], []
@@ -620,11 +607,21 @@ def figure5():
 
     a = ax[0, 0]
     a.axvspan(invalid_from / 1.4, currents[-1] * 1.4, color=SHADE, lw=0)
-    a.text(invalid_from / 1.25, 2e-3, "η > 1: space charge\nnot modelled", color=INK2, fontsize=8)
+    a.text(
+        invalid_from / 1.25,
+        2e-3,
+        "η > 1: space charge matters\n(classic model here; see Fig. 8)",
+        color=INK2,
+        fontsize=8,
+    )
     a.plot(currents, ks_qs - 1, **THEORY, label="quasi-static Boag (per constant segment)")
     a.plot(currents[valid], ks[valid] - 1, "o", color=S1, label="IonTracks (time-resolved)")
     a.plot(
-        currents[~valid], ks[~valid] - 1, "o", **hollow, label="IonTracks, outside validity (η > 1)"
+        currents[~valid],
+        ks[~valid] - 1,
+        "o",
+        **hollow,
+        label="IonTracks, η > 1 (no space charge here)",
     )
     a.set(xscale="log", yscale="log", xlim=(0.7, 1150), xlabel="nozzle current (nA)",
           ylabel="k_s − 1", title="(a) Recombination vs beam current")  # fmt: skip
@@ -635,12 +632,12 @@ def figure5():
     a.axhline(1.0, **LIMIT, label="quasi-static Boag")
     a.plot(dwell / T_C, ratio, color=S1, lw=1.0)
     a.plot(dwell[valid] / T_C, ratio[valid], "o", color=S1, label="IonTracks")
-    a.plot(dwell[~valid] / T_C, ratio[~valid], "o", **hollow, label="outside validity (η > 1)")
+    a.plot(dwell[~valid] / T_C, ratio[~valid], "o", **hollow, label="η > 1 (no space charge here)")
     for d, c_, e in zip(dwell / T_C, currents, eta, strict=True):
         a.annotate(f"{c_:g} nA", (d, 0), xycoords=("data", "axes fraction"), xytext=(0, 4),
                    textcoords="offset points", ha="center", fontsize=7, color=INK2 if e <= 1 else MUTED)  # fmt: skip
-    a.set(xscale="log", xlim=(0.6, 1600), xlabel="spot dwell / t꜀", ylabel="(k_s − 1) / (k_s,QS − 1)",
-          title="(b) Transients when spots approach t꜀")  # fmt: skip
+    a.set(xscale="log", xlim=(0.6, 1600), xlabel="spot dwell / $t_c$", ylabel="(k_s − 1) / (k_s,QS − 1)",
+          title="(b) Transients when spots approach $t_c$")  # fmt: skip
     a.legend(loc="center right")
 
     # (c) k_s map at 10 nA
@@ -649,7 +646,7 @@ def figure5():
     res10 = solve_field(field10, CH, GAS, model, points=fine)
     x, y, k = res10.ks_map()
     a = ax[0, 2]
-    cmap = LinearSegmentedColormap.from_list("blue", BLUE_RAMP)
+    cmap = plt.get_cmap(SEQUENTIAL)
     sc = a.scatter(
         x * 10, y * 10, c=(k - 1) * 100, cmap=cmap, s=38, edgecolors=SURFACE, linewidths=0.8
     )
@@ -689,6 +686,7 @@ def figure5():
            label="IonTracks")  # fmt: skip
     a.set(xlim=window, xlabel="time (s)", ylabel="chamber current (nA)",
           title="(e) Chamber current, 10 nA (same window)")  # fmt: skip
+    a.set_ylim(top=a.get_ylim()[1] * 1.3)
     a.legend(loc="upper left")
 
     # (f) lateral quadrature convergence
@@ -717,6 +715,109 @@ def figure5():
 
 
 # ================================================================== report
+# ================================================================== figure 8
+def figure8():
+    print("fig8: free electrons and space charge")
+    fig, ax = plt.subplots(2, 2, figsize=(10, 7.4))
+    gas = Gas.air(particle="electron")
+    fe_only = {"free_electrons": True, "space_charge": False}
+
+    # (a) free-electron fraction: exact formula vs simulated pulses without recombination
+    a = ax[0, 0]
+    fields = np.logspace(2, 4, 40)
+    worst = 0.0
+    for gap, color in zip((0.05, 0.1, 0.2), (S1, S2, S3), strict=True):
+        a.plot(fields, [gas.free_electron_fraction(gap, e) for e in fields], color=color,
+               label=f"(λ/d)(1 − exp(−d/λ)), d = {gap * 10:g} mm")  # fmt: skip
+        for e in (200.0, 1000.0, 5000.0):
+            ch = ParallelPlateChamber(gap, e * gap)
+            ep = Uniform1D(Grid1D(n_cells=100), **fe_only).run_episode(
+                PiecewiseConstant.pulse(1e9, 0, INSTANT), ch, gas.with_(alpha_cm3_s=0.0)
+            )
+            exact = gas.free_electron_fraction(gap, e)
+            worst = max(worst, abs(ep.free_electron_fraction / exact - 1))
+            a.plot(e, ep.free_electron_fraction, "o", color=color)
+    a.plot([], [], "o", color=INK2, label="IonTracks, no recombination")
+    a.set(xscale="log", xlabel="field (V/cm)", ylabel="free-electron fraction p",
+          title="(a) Electrons collected before attaching")  # fmt: skip
+    a.legend(loc="upper left")
+    check("free-electron fraction vs exact, max rel. deviation", worst, 1e-10)
+
+    # (b) pulsed efficiency: Boag, Fenwick & Kumar (exact with free electrons), full model
+    a = ax[0, 1]
+    ch = ParallelPlateChamber(0.1, 300.0)
+    g0 = gas.with_(D_pos_cm2_s=0.0, D_neg_cm2_s=0.0)
+    per_gy = gas.ion_pairs_per_cm3_per_Gy()
+    dpp = np.logspace(-3, 0, 10)  # Gy per pulse (in air)
+    line = np.logspace(-3.1, 0.1, 200)
+    a.plot(line, [boag_pulsed_f(n * per_gy, ch, g0) for n in line], **LIMIT,
+           label="Boag (no free electrons)")  # fmt: skip
+    a.plot(line, [boag_pulsed_free_electron_f(n * per_gy, ch, g0) for n in line], **THEORY,
+           label="Fenwick & Kumar, exact with free electrons")  # fmt: skip
+    fe, full, rel = [], [], []
+    for dose in dpp:
+        src = PiecewiseConstant.pulse(dose * per_gy, 0, INSTANT)
+        e1 = Uniform1D(Grid1D(n_cells=400), **fe_only).run_episode(src, ch, g0)
+        e2 = Uniform1D(Grid1D(n_cells=400)).run_episode(src, ch, gas)
+        fe.append(e1.collection_efficiency)
+        full.append(e2.collection_efficiency)
+        exact = boag_pulsed_free_electron_f(dose * per_gy, ch, g0)
+        rel.append(abs((1 - e1.collection_efficiency) / (1 - exact) - 1))
+    a.plot(dpp, fe, "o", color=S1, label="IonTracks: free electrons only")
+    a.plot(dpp, full, "s", color=S2, ms=5, label="IonTracks: + space charge + diffusion")
+    a.set(xscale="log", xlabel="dose per pulse in air (Gy)", ylabel="collection efficiency",
+          title="(b) Instantaneous pulse, 1 mm, 300 V")  # fmt: skip
+    a.legend(loc="lower left")
+    check("free electrons vs Fenwick-Kumar exact, max rel. error in (1-f), 1 mGy-1 Gy",
+          max(rel), 1e-3)  # fmt: skip
+
+    # (c) the space-charge effect against the pulsed space-charge parameter
+    a = ax[1, 0]
+    slopes = []
+    for (gap, volts), color in zip(((0.1, 100.0), (0.2, 200.0), (0.2, 50.0)), (S1, S2, S3),
+                                   strict=True):  # fmt: skip
+        ch_c = ParallelPlateChamber(gap, volts)
+        effect, param = [], []
+        for n0 in np.logspace(7, 11, 9):
+            src = PiecewiseConstant.pulse(n0, 0, INSTANT)
+            f_sc = Uniform1D(Grid1D(n_cells=200)).run_episode(src, ch_c, gas).f_recombination
+            f_no = (
+                Uniform1D(Grid1D(n_cells=200), space_charge=False)
+                .run_episode(src, ch_c, gas)
+                .f_recombination
+            )
+            effect.append((1 - f_sc) / (1 - f_no) - 1)
+            param.append(space_charge_parameter_pulsed(n0, ch_c))
+        a.plot(param, np.abs(effect), "o-", color=color, label=f"d = {gap * 10:g} mm, {volts:g} V")
+        slopes.append(np.polyfit(np.log(param[:3]), np.log(np.abs(effect[:3])), 1)[0])
+    a.set(xscale="log", yscale="log", xlabel="e n₀ d² / (ε₀ V)",
+          ylabel="relative increase of the loss 1 − f",
+          title="(c) Space-charge onset (instantaneous pulse)")  # fmt: skip
+    a.legend(loc="upper left")
+    check("space-charge effect at low density: |log-log slope - 1|",
+          float(np.max(np.abs(np.array(slopes) - 1))), 0.1, ".3f")  # fmt: skip
+
+    # (d) field screening after a dense pulse
+    a = ax[1, 1]
+    ch_d = ParallelPlateChamber(0.2, 200.0)
+    tc = ch_d.gap_cm / (gas.mu_pos_cm2_Vs * ch_d.field_V_cm)
+    times = np.array([0.02, 0.1, 0.25, 0.5, 0.8]) * tc
+    ep = Uniform1D(Grid1D(n_cells=200)).run_episode(
+        PiecewiseConstant.pulse(0.05 * per_gy, 0, INSTANT), ch_d, gas, snapshot_times_s=times
+    )
+    zf = np.linspace(0, ch_d.gap_cm, 201)
+    cmap = plt.get_cmap(SEQUENTIAL)
+    for k, t in enumerate(ep.snapshots.times_s):
+        a.plot(zf * 10, ep.snapshots.field_V_cm[k] / ch_d.field_V_cm, color=cmap(k / 4),
+               label=f"t = {t / tc:.2f} t_c")  # fmt: skip
+    a.axhline(1.0, **LIMIT)
+    a.set(xlabel="z (mm), anode at 0", ylabel="E / (V/d)",
+          title="(d) Field after a 50 mGy pulse (2 mm, 200 V)")  # fmt: skip
+    a.legend(loc="upper center")
+    fig.tight_layout()
+    save(fig, "fig8_free_electrons_space_charge.png")
+
+
 def write_report(runtime_s: float) -> None:
     n_ok = sum(c["ok"] for c in CHECKS)
     rows = "\n".join(
@@ -792,7 +893,8 @@ as stepping every step, to round-off.
 
 (a) k_s − 1 against nozzle current. At clinical currents it matches Boag's continuous theory
 applied to every constant segment. Above about 30 nA the peak local dose rate makes η > 1, so space
-charge (not yet modelled) matters. Those points are hollow and shaded and are not valid results.
+charge matters. Those points (hollow, shaded) use the classic model here; Figure 8 covers
+space charge.
 (b) The ratio to the quasi-static estimate as a function of spot dwell time: when spots last only a
 few collection times, build-up and drain reduce recombination.
 (c) k_s over the sensitive area. The pattern follows the 5 mm spot grid: points under a spot row
@@ -801,8 +903,25 @@ see higher instantaneous dose rates.
 between the saturation current and the simulated current is the recombination loss.
 (f) Convergence with the number of lateral sample points.
 
-Not yet validated here: free electrons and space charge (not implemented), and initial (track)
-recombination (to be added). For the blind comparisons with measurements, see
+## Figure 8 · Free electrons and space charge
+
+![Figure 8](figures/fig8_free_electrons_space_charge.png)
+
+(a) Electrons that reach the anode before attaching (attachment data of Götz et al. 2013, as
+tabulated by Fenwick & Kumar 2023). The attachment kernel reproduces (λ/d)(1 − exp(−d/λ)) to
+round-off.
+(b) Collection efficiency of an instantaneous pulse. With free electrons, a uniform field and no
+diffusion, the model reproduces the exact solution of Fenwick & Kumar (2023). Adding space charge
+and diffusion (the default model) lowers the efficiency at high dose per pulse.
+(c) The relative space-charge increase of the loss is proportional to e n₀ d² / (ε₀ V), which is
+`space_charge_parameter_pulsed`.
+(d) The separating ion clouds screen the field in the middle of the gap. The field grows near the
+electrodes, while the mean field stays V/d.
+
+Figures 1–5 compare with Boag's classic theories and therefore use the model without free
+electrons or space charge. The track model (initial recombination, overlapping tracks) is
+validated in [VALIDATION_TILE3D.md](VALIDATION_TILE3D.md). For the blind comparisons with
+measurements, see
 [BENCHMARK_DCPT2019.md](BENCHMARK_DCPT2019.md) (scanned protons) and
 [BENCHMARK_RISOE2026.md](BENCHMARK_RISOE2026.md) (pulsed electrons and photons).
 """,
@@ -812,7 +931,7 @@ recombination (to be added). For the blind comparisons with measurements, see
 
 if __name__ == "__main__":
     t_start = time.perf_counter()
-    for make in (figure1, figure2, figure3, figure4, figure5):
+    for make in (figure1, figure2, figure3, figure4, figure5, figure8):
         make()
     runtime = time.perf_counter() - t_start
     write_report(runtime)

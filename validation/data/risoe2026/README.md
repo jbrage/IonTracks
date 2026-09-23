@@ -41,6 +41,9 @@ higher rate, the pulses per MU drop to about a third:
 - 4 MV above 50 MU/min;
 - 10 FFF above 400 MU/min.
 
-So the counter appears to miss pulses above ~120 Hz. For the electron beams the drop already
-appears at 600 MU/min (implied ~100 Hz). The benchmark compares both readings of the
-high-dose-rate records (as recorded, and constant dose per pulse).
+So the counter appears to miss pulses above ~120 Hz. Independent counts on a TrueBeam support
+this (White et al. 2026, J. Appl. Clin. Med. Phys. 27 e70670): 35.5 pulses per MU for 6 MV at
+400 MU/min, where this file has 11.5, and 7.9 for 10 MV FFF, where it has 7.4.
+
+For the electron beams the drop already appears at 600 MU/min (implied ~100 Hz). The benchmark
+compares both readings of the high-dose-rate records (as recorded, and constant dose per pulse).

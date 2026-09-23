@@ -14,17 +14,22 @@ from the delivery records, from independent literature, or is a stated assumptio
   3.8 mm at 244 MeV (Lee et al 2020, J. Appl. Clin. Med. Phys.), log-interpolated in energy. The
   prediction is repeated at sigma -/+ 10 %, the site-to-site agreement of ProBeam in-air spot
   sizes (Langner et al 2017, J. Appl. Clin. Med. Phys.).
-* Gas: Gas.air at each measurement's T and p (Boag mobilities, alpha = 1.6e-6 cm^3/s),
-  W_air = 34.44 eV (ICRU 90). The Roos sensitive area (r = 7.8 mm) is sampled at 32 points.
-* Initial (in-track) recombination, not yet in v4, is added as A/V, with A from the legacy
-  IonTracks single-track solver at 200 V (a calculation that does not use these charges).
+* Gas: Gas.air(particle="proton") at each measurement's T and p (Boag mobilities,
+  alpha = 1.6e-6 cm^3/s, W_air = 34.44 eV from ICRU 90, free electrons after Goetz et al.).
+  The Roos sensitive area (r = 7.8 mm) is sampled at 32 points.
+* Initial (in-track) recombination: one proton track per energy and voltage in the 3D track
+  model (Tile3D; N0 from the stopping power in air, Gaussian radius from the IonTracks v3 LET
+  table). The surviving fraction f_init of every track feeds the general recombination:
+  f = f_init * f_general(q f_init), the coupling validated in validation/VALIDATION_TILE3D.md.
+* Physics: the prediction uses the default model (free electrons and space charge). The classic
+  model (neither) is shown for comparison.
 
 Because every spot is followed by a dead time longer than the chamber memory, each spot at each
 point is an independent episode whose loss depends only on its local rate q. The fast evaluator
 tabulates that loss with the v4 solver over a grid of q (per voltage, spot duration and gas), and
 is checked against the full solve_field.
 
-Run from the repository root:  python validation/benchmark_dcpt2019.py   (~20 s)
+Run from the repository root:  python validation/benchmark_dcpt2019.py   (~1 min)
 """
 
 import csv
@@ -32,25 +37,26 @@ import math
 import time
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import plotstyle  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
+from plotstyle import AXIS, INK2, S1, S2, S3  # noqa: E402
 
 from iontracks import (  # noqa: E402
     Field,
     Gas,
+    GaussianTrack,
     Grid1D,
+    Grid3D,
     ParallelPlateChamber,
     PiecewiseConstant,
+    Tile3D,
     Uniform1D,
     solve_field,
     solve_point,
 )
 from iontracks.constants import MEV_TO_J  # noqa: E402
-from iontracks.synthetic import W_AIR_PROTONS_EV  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "validation" / "data" / "dcpt2019"
@@ -61,28 +67,22 @@ SPACING_CM, N_SIDE, DEAD_S = 0.25, 41, 2e-3
 ENERGIES = (70, 150, 226, 244)
 SIGMA_REL = 0.10  # site-to-site agreement of ProBeam in-air spot sigma (Langner et al 2017)
 SIGMAS = {"nominal": 0.0, "small": -SIGMA_REL, "large": SIGMA_REL}
-# legacy IonTracks single-track k_s - 1 at 200 V, 2 mm (origin/backend-benchmark comparison_initial.csv)
-INITIAL_200V = {70: 3.62e-4, 150: 2.07e-4, 226: 1.58e-4, 244: 1.51e-4}
-MODEL = Uniform1D(Grid1D(n_cells=100))
+# IonTracks v3 single-track k_s - 1 at 200 V, 2 mm (origin/backend-benchmark comparison_initial.csv):
+# the values used before v4 had a track model, kept only for comparison
+LEGACY_INITIAL_200V = {70: 3.62e-4, 150: 2.07e-4, 226: 1.58e-4, 244: 1.51e-4}
+CLASSIC = {"free_electrons": False, "space_charge": False}
+PHYSICS = {
+    "full": {},
+    "classic": CLASSIC,
+    "fe": {"space_charge": False},
+    "sc": {"free_electrons": False},
+}
+MODELS = {k: Uniform1D(Grid1D(n_cells=100), **v) for k, v in PHYSICS.items()}
+MODEL = MODELS["full"]
+TRACK_GRID = Grid3D(n_xy=40, n_z=80)
 POINTS = ParallelPlateChamber(GAP_CM, 200.0, sensitive_radius_cm=ROOS_R_CM).sample_points(4, 8)
 
-# ------------------------------------------------------------------ style (as run_validation.py)
-INK, INK2, MUTED, GRID, AXIS, SURFACE, SHADE = (
-    "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7", "#fcfcfb", "#f0efec",
-)  # fmt: skip
-S1, S2, S3 = "#2a78d6", "#eb6834", "#1baf7a"
-plt.rcParams.update(
-    {
-        "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
-        "axes.edgecolor": AXIS, "axes.linewidth": 0.8, "axes.labelcolor": INK2,
-        "axes.titlecolor": INK, "axes.titlesize": 10, "axes.titleweight": "semibold",
-        "axes.titlelocation": "left", "axes.grid": True, "axes.spines.top": False,
-        "axes.spines.right": False, "grid.color": GRID, "grid.linewidth": 0.6,
-        "xtick.color": AXIS, "ytick.color": AXIS, "xtick.labelcolor": INK2,
-        "ytick.labelcolor": INK2, "font.size": 9, "font.family": ["Segoe UI", "DejaVu Sans"],
-        "lines.linewidth": 1.6, "lines.markersize": 6, "legend.frameon": False, "legend.fontsize": 8,
-    }
-)  # fmt: skip
+plotstyle.apply()
 DRF_COLOR = {0.2: S3, 0.5: S2, 1.0: S1}
 E_MARKER = {70: "o", 150: "s", 226: "^", 244: "D"}
 
@@ -132,7 +132,7 @@ def sigma_literature_cm(E):
 
 
 def gas_for(s):
-    return Gas.air(T_K=273.15 + s["T"], p_hPa=10 * s["P"], W_eV=W_AIR_PROTONS_EV)
+    return Gas.air(T_K=273.15 + s["T"], p_hPa=10 * s["P"], particle="proton")
 
 
 def raster(s, sigma_cm):
@@ -152,36 +152,54 @@ def raster(s, sigma_cm):
                             stopping_power(E, "air"))  # fmt: skip
 
 
+# ------------------------------------------------------------------ initial recombination
+_INITIAL: dict = {}
+
+
+def f_initial(E, V, gas, physics="full"):
+    """Surviving fraction of one proton track (3D track model) at energy E and voltage V."""
+    key = (E, V, physics)
+    if key not in _INITIAL:
+        track = GaussianTrack.from_stopping_power(stopping_power(E, "air"), gas)
+        model = Tile3D(track, TRACK_GRID, **PHYSICS[physics])
+        _INITIAL[key] = model.single_track(ParallelPlateChamber(GAP_CM, V), gas).f_recombination
+    return _INITIAL[key]
+
+
 # ------------------------------------------------------------------ fast evaluator
 _TABLES: dict = {}
 
 
-def loss_table(V, dwell, gas):
+def loss_table(V, dwell, gas, physics="full"):
     """Loss fraction of one constant-rate spot episode, tabulated over the local rate q."""
-    key = (V, round(dwell, 9), gas)
+    key = (V, round(dwell, 9), gas, physics)
     if key not in _TABLES:
         chamber = ParallelPlateChamber(GAP_CM, V)
         q = np.logspace(9, 15, 49)
         loss = []
         for qi in q:
-            ep = MODEL.run_episode(PiecewiseConstant.constant(qi, 0, dwell), chamber, gas)
+            ep = MODELS[physics].run_episode(PiecewiseConstant.constant(qi, 0, dwell), chamber, gas)
             loss.append(ep.recombined_cm2 / ep.produced_cm2)
         _TABLES[key] = (np.log(q), np.log(np.array(loss) / q))  # loss / q is smooth in log q
     return _TABLES[key]
 
 
-def f_general(s, sigma_cm, V):
-    """Chamber collection efficiency for general recombination (charge-weighted over points)."""
+def f_general(s, sigma_cm, V, physics="full", scale=1.0):
+    """Chamber collection efficiency for general recombination (charge-weighted over points).
+
+    ``scale`` multiplies the ionisation (the fraction surviving initial recombination).
+    """
     gas = gas_for(s)
     field = raster(s, sigma_cm)
     dwell = float(s["row"]["time_s"])
-    lq, lh = loss_table(V, dwell, gas)
+    lq, lh = loss_table(V, dwell, gas, physics)
     produced = recombined = 0.0
     for x, y, w in zip(POINTS.x_cm, POINTS.y_cm, POINTS.weight_cm2, strict=True):
         q = (
             field.fluence_per_spot_cm2(x, y)
             * gas.ion_pairs_per_cm(field.stopping_power_MeV_cm2_g)
             / dwell
+            * scale
         )
         q = q[q > 0]
         loss = q * np.exp(np.interp(np.log(q), lq, lh))
@@ -190,10 +208,14 @@ def f_general(s, sigma_cm, V):
     return 1.0 - recombined / produced
 
 
-def predicted_ratio(s, sigma_cm):
-    """Model Q(V)/Q(200 V) including initial recombination A/V."""
-    a = INITIAL_200V[s["E"]] * 200.0
-    f = np.array([f_general(s, sigma_cm, V) / (1 + a / V) for V in VOLTS])
+def predicted_ratio(s, sigma_cm, physics="full"):
+    """Model Q(V)/Q(200 V): initial recombination (3D track) feeding general recombination."""
+    gas = gas_for(s)
+    f = []
+    for V in VOLTS:
+        f_init = f_initial(s["E"], V, gas, physics)
+        f.append(f_init * f_general(s, sigma_cm, V, physics, f_init))
+    f = np.array(f)
     return f / f[-1], f
 
 
@@ -239,6 +261,10 @@ def main():
             k: predicted_ratio(s, sigma_literature_cm(s["E"]) * (1 + d)) for k, d in SIGMAS.items()
         }
         s["pred"] = pred["nominal"][0]
+        s["pred_classic"], f_classic = predicted_ratio(s, sigma_literature_cm(s["E"]), "classic")
+        s["pred_fe"], _ = predicted_ratio(s, sigma_literature_cm(s["E"]), "fe")
+        s["pred_sc"], _ = predicted_ratio(s, sigma_literature_cm(s["E"]), "sc")
+        s["ks_true_classic"] = 1 / f_classic[-1]
         s["band"] = (
             np.minimum(pred["small"][0], pred["large"][0]),
             np.maximum(pred["small"][0], pred["large"][0]),
@@ -250,16 +276,18 @@ def main():
         lo, hi = s["band"]
         outside = np.maximum(0.0, np.maximum(lo - s["ratio"], s["ratio"] - hi))
         s["consistent"] = (outside <= 2 * s["err"])[:-1]
-        # the earlier approach: continuous beam at the dataset's dose rate
+        # the earlier approach: continuous beam at the dataset's dose rate (classic physics)
         gas = gas_for(s)
         q = float(s["row"]["dose_rate_air_Gy_s"]) * gas.ion_pairs_per_cm3_per_Gy()
         f_c = []
         for V in VOLTS:
             ch = ParallelPlateChamber(GAP_CM, V)
+            f_init = f_initial(s["E"], V, gas, "classic")
             fg = solve_point(
-                PiecewiseConstant.constant(q, 0, 0.05 * 200 / V), ch, gas, MODEL
-            ).f_recombination
-            f_c.append(fg / (1 + INITIAL_200V[s["E"]] * 200 / V))
+                PiecewiseConstant.constant(q * f_init, 0, 0.05 * 200 / V), ch, gas,
+                MODELS["classic"],
+            ).f_recombination  # fmt: skip
+            f_c.append(f_init * fg)
         f_c = np.array(f_c)
         s["pred_cont"] = f_c / f_c[-1]
         print(f"  {s['E']:3d} MeV DRF {s['drf']:.1f}: max |dev| {np.max(np.abs(s['pred'] - s['ratio'])) * 100:.2f} %, "
@@ -279,6 +307,7 @@ def make_figure(settings):
             lo, hi = s["band"]
             a.fill_between(x, 1 / hi, 1 / lo, color=c, alpha=0.18, lw=0)
             a.plot(x, 1 / s["pred"], color=c, lw=1.2)
+            a.plot(x, 1 / s["pred_classic"], color=c, lw=1.0, ls=":")
             a.errorbar(x, 1 / s["ratio"], yerr=s["err"] / s["ratio"] ** 2, fmt="o", color=c, ms=5,
                        capsize=2, label=f"DRF {s['drf']:g}, measured")  # fmt: skip
         a.plot(
@@ -289,6 +318,9 @@ def make_figure(settings):
             label=f"v4 prediction, σ = {sigma_literature_cm(E) * 10:.1f} mm",
         )
         a.fill_between([], [], [], color=INK2, alpha=0.18, lw=0, label=f"σ ± {SIGMA_REL:.0%}")
+        a.plot(
+            [], [], color=INK2, lw=1.0, ls=":", label="classic model (no free e⁻, no space charge)"
+        )
         a.set(
             xlabel="1 / V²  (1/kV²)",
             ylabel="Q(200 V) / Q(V)",
@@ -308,7 +340,8 @@ def make_figure(settings):
 
     tvm_nom, tvm_err = model("tvm_model")
     true_nom, true_err = model("ks_true")
-    lim = [0, max(true_nom.max() + true_err[1].max(), tvm_meas.max()) * 1.05]
+    top = max((true_nom + true_err[1]).max(), (tvm_nom + tvm_err[1]).max(), tvm_meas.max())
+    lim = [0, top * 1.08]
     a.plot(lim, lim, color=AXIS, lw=0.8)
     a.errorbar(tvm_meas, tvm_nom, yerr=tvm_err, fmt="s", color=S2, ms=5, capsize=2,
                label="v4 predicted charges, same TVM (like with like)")  # fmt: skip
@@ -377,6 +410,39 @@ def write_report(settings, refit_dev, runtime):
         [(s["ks_true"]["large"] - 1) / (s["ks_true"]["nominal"] - 1) - 1 for s in settings]
     )
     pred_dev = max(np.max(np.abs(s["pred"] - s["ratio"])) for s in settings) * 100
+    classic_dev = max(np.max(np.abs(s["pred_classic"] - s["ratio"])) for s in settings) * 100
+    rms = (
+        np.sqrt(np.mean(np.concatenate([(s["pred"] - s["ratio"])[:-1] for s in settings]) ** 2))
+        * 100
+    )
+    rms_classic = (
+        np.sqrt(
+            np.mean(np.concatenate([(s["pred_classic"] - s["ratio"])[:-1] for s in settings]) ** 2)
+        )
+        * 100
+    )
+
+    def stats(key):
+        res = np.concatenate([(s[key] - s["ratio"])[:-1] for s in settings])
+        return np.max(np.abs(res)) * 100, np.sqrt(np.mean(res**2)) * 100
+
+    decomp = "\n".join(
+        f"| {name} | {stats(key)[0]:.2f} % | {stats(key)[1]:.2f} % |"
+        for name, key in (
+            ("default (free electrons + space charge)", "pred"),
+            ("free electrons only", "pred_fe"),
+            ("space charge only", "pred_sc"),
+            ("classic (neither)", "pred_classic"),
+        )
+    )
+    decomp_indented = "\n".join("   " + line for line in decomp.splitlines())
+    gas0 = gas_for(settings[0])
+    init_rows = "\n".join(
+        f"| {E} | {GaussianTrack.from_stopping_power(stopping_power(E, 'air'), gas0).radius_cm * 1e4:.0f} | "
+        + " | ".join(f"{1 / _INITIAL[(E, V, 'full')] - 1:.2e}" for V in VOLTS)
+        + f" | {1 / _INITIAL[(E, 200.0, 'classic')] - 1:.2e} | {LEGACY_INITIAL_200V[E]:.2e} |"
+        for E in ENERGIES
+    )
     cont_dev = max(np.max(np.abs(s["pred_cont"] - s["ratio"])) for s in settings) * 100
     fast_check = next(s for s in settings if "fast_check" in s)["fast_check"]
     sig_rows = " · ".join(f"{E} MeV: {sigma_literature_cm(E) * 10:.2f} mm" for E in ENERGIES)
@@ -397,9 +463,11 @@ below lists every input and where it comes from.
 | Dead time between spots | 2 ms | Assumed (not in the data) |
 | Spot σ at the chamber | {sig_rows} | ProBeam in-air σ at isocentre, 5.6 mm (70 MeV) to 3.8 mm (244 MeV), [Lee et al 2020](https://pmc.ncbi.nlm.nih.gov/articles/PMC7170285/), log-interpolated |
 | Spot σ uncertainty | ± {SIGMA_REL:.0%} | Site-to-site agreement of ProBeam in-air σ, [Langner et al 2017](https://doi.org/10.1002/acm2.12078) |
-| µ⁺, µ⁻, α, D± | 1.36, 2.1 cm²/Vs; 1.6e-6 cm³/s; Einstein | Boag; `Gas.air` at each measurement's T and p |
-| W_air | 34.44 eV | ICRU 90 |
-| Initial recombination | A/V, k_s − 1 = 0.015–0.036 % at 200 V | Legacy IonTracks single-track solver (a calculation) |
+| µ⁺, µ⁻, α, D± | 1.36, 2.1 cm²/Vs; 1.6e-6 cm³/s; Einstein | Boag; `Gas.air(particle="proton")` at each measurement's T and p |
+| W_air | 34.44 eV | ICRU 90 (protons) |
+| Free electrons | mobility 830 cm²/Vs, attachment rate γ(E) | Götz et al. 2013, as tabulated by Fenwick & Kumar 2023 |
+| Space charge | on | Gauss's law for the ion charge (the default model) |
+| Initial recombination | one track per energy and voltage in the 3D track model | N0 from the stopping power in air; Gaussian radius from the IonTracks v3 LET table (20 µm floor for protons) |
 
 The dose per layer agrees with the chamber's own 200 V reading × s_w,air ≈ 1.13, so it is
 probably that reading. It sets the ionisation density, which the voltage dependence cannot
@@ -410,23 +478,49 @@ constrain, so it isn't a tuned parameter.
 ## Results
 
 1. **Voltage dependence of the charge.** The prediction reproduces Q(V)/Q(200 V) for all 10
-   settings to within {pred_dev:.2f} %. Of the {n_all} ratios below 200 V, {n_cons} lie inside the
-   σ ± {SIGMA_REL:.0%} band widened by twice their repeat scatter. The earlier approach (a
-   continuous beam at the dataset's dose rate) deviates by up to {cont_dev:.2f} %.
+   settings to within {pred_dev:.2f} % (RMS {rms:.2f} %). Of the {n_all} ratios below 200 V,
+   {n_cons} lie inside the σ ± {SIGMA_REL:.0%} band widened by twice their repeat scatter. The
+   classic model (no free electrons, uniform field) deviates by up to {classic_dev:.2f} % (RMS
+   {rms_classic:.2f} %). The earlier approach (a continuous beam at the dataset's dose rate)
+   deviates by up to {cont_dev:.2f} %.
 2. **k_s at 200 V, extracted like for like.** Applying the same TVM (200/67 V) to measured and
    predicted charges, the mean relative difference in k_s − 1 is {np.mean(tvm_dev) * 100:+.0f} %
    (spread {np.std(tvm_dev) * 100:.0f} %, nominal σ).
-3. **True k_s versus TVM.** The model's true k_s, P / (P − R), is {np.mean(true_over_tvm):.2f}×
-   larger on average (range {true_over_tvm.min():.2f}–{true_over_tvm.max():.2f}) than what the TVM
-   extracts from the same predicted charges. There are two causes:
-   - At the lowest dose rates, initial recombination (∝ 1/V) is a large share. The
-     continuous-beam TVM formula (built for 1/V²) recovers only about a quarter of an A/V term
-     between 200 V and 67 V.
-   - At the highest dose rates, the spot structure makes the local dose rate vary strongly across
-     the chamber and in time, so Q(V) departs from the Boag-continuous form.
+3. **True k_s versus TVM.** The model's true k_s − 1, from P / (P − R), is on average
+   {np.mean(true_over_tvm):.2f} times the value the TVM extracts from the same predicted charges
+   (range {true_over_tvm.min():.2f}–{true_over_tvm.max():.2f}). The TVM assumes that 1/Q falls
+   as 1/V², but three parts of the model do not:
+   - initial recombination goes as 1/V;
+   - the free-electron fraction grows with the field;
+   - the spot structure varies the local dose rate across the chamber and in time.
 
-   This is a model result, not a measurement. It rests on the model's behaviour above 200 V and
-   needs an independent check, for example a higher-voltage series or a calorimetric reference.
+   This is a model result, not a measurement, and it needs an independent check: a
+   higher-voltage series or a calorimetric reference.
+4. **Which physics does what.** Deviation of Q(V)/Q(200 V) over the 40 ratios below 200 V:
+
+   | Model | max | RMS |
+   |---|---|---|
+{decomp_indented}
+
+   Free electrons alone change little. Space charge makes the agreement worse. At 50 V and the
+   highest dose rate the space-charge parameter η = e q d⁴ / (ε₀ µ⁺ V²) reaches about 3 at a spot centre,
+   so the model adds loss at low voltage, and the predicted voltage dependence steepens beyond
+   what was measured. Two things set the size of that term:
+   - the ion parameters: η ∝ 1/µ⁺, and Boag's µ⁺ = 1.36 cm²/Vs is at the low end of published
+     values (the free-electron models of Götz, Kranzer and Fenwick & Kumar use 1.87 cm²/Vs);
+   - the laterally uniform (1D) field, while a spot is only about twice as wide as the gap.
+
+   The Risø benchmark shows the same space-charge excess in its field ratios. Choosing between
+   these needs independent data, not a fit to these charges. It is an open item.
+
+## Initial recombination from the 3D track model
+
+k_s − 1 of one track (default physics) at each voltage, the classic-physics value at 200 V, and
+the IonTracks v3 values that were used before v4 had a track model. b is the Gaussian track radius.
+
+| E (MeV) | b (µm) | 50 V | 67 V | 83 V | 125 V | 200 V | 200 V, classic | 200 V, IonTracks v3 |
+|---|---|---|---|---|---|---|---|---|
+{init_rows}
 
 ## Uncertainties
 
@@ -474,8 +568,9 @@ widened by 2 × their repeat scatter.
   directly.
 * **Would tighten the prediction.** DCPT's own spot sizes at 2 cm depth, the dead time between
   spots from the logs, and the delivery-to-delivery reproducibility of the charge readings.
-* **Not modelled.** Space charge (η ≪ 1 here). Initial recombination is taken from the legacy
-  single-track solver until the v4 module replaces it.
+* **Model inputs without independent data here.** The track radius (v3 LET table, floor 20 µm)
+  and the free-electron attachment rate below 1000 V/cm (the Götz parameterisation is stated
+  for ≥ 1000 V/cm and is extrapolated to 250 V/cm at 50 V).
 """,
         encoding="utf-8",
     )
