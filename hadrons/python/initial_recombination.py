@@ -145,7 +145,7 @@ class single_track_PDEsolver:
             for j in range(self.no_x):
                 if self.debug:
                     print(
-                        f"\rGaussian distribution loop: i - {i+1: >3}/{self.no_x}, j - {j+1: >3}/{self.no_x} Time: {time.time()-start_time: .2f}",
+                        f"\rGaussian distribution loop: i - {i + 1: >3}/{self.no_x}, j - {j + 1: >3}/{self.no_x} Time: {time.time() - start_time: .2f}",
                         end="",
                     )
                 distance_from_center_cm = (
@@ -167,7 +167,7 @@ class single_track_PDEsolver:
         for time_step in range(self.computation_time_steps):
             if self.debug:
                 print(
-                    f"Calculation loop iteration {time_step+1}/{self.computation_time_steps}"
+                    f"Calculation loop iteration {time_step + 1}/{self.computation_time_steps}"
                 )
 
             # calculate the new densities and store them in temporary arrays
@@ -187,7 +187,7 @@ class single_track_PDEsolver:
                     for k in range(1, self.no_z_with_buffer - 1):
                         if self.debug:
                             print(
-                                f"\rDensities calculation loop: i - {i+1: >3}/{self.no_x-1}, j - {j+1: >3}/{self.no_x-1}, k - {k+1: >3}/{self.no_z_with_buffer-1} Time: {time.time()-start_time: .2f}",
+                                f"\rDensities calculation loop: i - {i + 1: >3}/{self.no_x - 1}, j - {j + 1: >3}/{self.no_x - 1}, k - {k + 1: >3}/{self.no_z_with_buffer - 1} Time: {time.time() - start_time: .2f}",
                                 end="",
                             )
                         # using the Lax-Wendroff scheme

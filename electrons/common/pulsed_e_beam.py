@@ -4,9 +4,7 @@ from electrons.common.generic_electron_solver import GenericElectronSolver
 
 
 def get_pulsed_beam_pde_solver(base_solver_class: GenericElectronSolver):
-
     class PulsedBeamPDEsolver(base_solver_class):
-
         def get_initialised_charge_carriers_after_beam(self):
             initialised_charge_carriers = (
                 self.electron_density_per_cm3

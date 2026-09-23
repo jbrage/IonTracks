@@ -19,7 +19,7 @@ def main():
     args = {}
     if len(sys.argv) > 2:
         try:
-            args['myseed'] = int(sys.argv[2])
+            args["myseed"] = int(sys.argv[2])
         except:
             raise ValueError("seed should be a number")
     # set parameters
@@ -40,8 +40,11 @@ def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     artifacts_dir = "../artifacts"
     import os
+
     os.makedirs(artifacts_dir, exist_ok=True)
-    filename = os.path.join(artifacts_dir, f"IonTracks_results_{backend}_{timestamp}.txt")
+    filename = os.path.join(
+        artifacts_dir, f"IonTracks_results_{backend}_{timestamp}.txt"
+    )
     IonTracks_df = pd.DataFrame()
     start_time = time.time()
     results_str = ""
@@ -52,7 +55,7 @@ def main():
             particle=data.particle,
             doserate_Gy_min=data.doserate_Gy_min,
             backend=backend,
-            **args
+            **args,
         )
         IonTracks_df = pd.concat([IonTracks_df, result_df], ignore_index=True)
         results_str += f"Step {idx}\n"
@@ -78,7 +81,11 @@ def main():
     ax.set_xscale("log")
     ax.set_xlabel("Dose rate (Gy/s)")
     ax.set_ylabel("$k_s$ (IonTracks)")
-    fig.savefig(os.path.join(artifacts_dir, f"IonTracks_continuous_beam_{backend}.pdf"), bbox_inches="tight")
+    fig.savefig(
+        os.path.join(artifacts_dir, f"IonTracks_continuous_beam_{backend}.pdf"),
+        bbox_inches="tight",
+    )
+
 
 if __name__ == "__main__":
     main()

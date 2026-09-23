@@ -83,9 +83,9 @@ if __name__ == "__main__":
     )
 
     # generate the data for the Boag theory
-    data_dict[
-        "charge_density_C_cm3_s"
-    ] = charge_density_C_cm3_s  # replace by the charge density, not electron
+    data_dict["charge_density_C_cm3_s"] = (
+        charge_density_C_cm3_s  # replace by the charge density, not electron
+    )
     data_dict["voltage_V"] = 10 ** np.linspace(
         np.log10(IonTracks_df.voltage_V.min()),
         np.log10(IonTracks_df.voltage_V.max()),

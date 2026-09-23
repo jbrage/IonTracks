@@ -83,9 +83,7 @@ class GenericElectronSolver(ABC):
     alpha: float = 1.60e-6  # cm^3/s, recombination constant
     r_cm: float = 0.002  # radius of the sampled cylinder
     buffer_radius: int = 5
-    no_z_electrode: int = (
-        5  # length of the electrode-buffer to ensure no ions drift through the array in one time step
-    )
+    no_z_electrode: int = 5  # length of the electrode-buffer to ensure no ions drift through the array in one time step
     dt: float = 1.0
 
     # Derived properties
@@ -190,7 +188,6 @@ class GenericElectronSolver(ABC):
         """
 
         for time_step in range(self.computation_time_steps):
-
             """
             Refill the array with the electron density each time step
             """

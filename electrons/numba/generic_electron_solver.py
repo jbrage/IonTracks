@@ -39,7 +39,6 @@ def numba_calculate(
     sc_neg, sc_pos, sc_center = numba_create_sc_gradients(s, c)
 
     for time_step in range(computation_time_steps):
-
         """
         Refill the array with the electron density each time step
         """
@@ -106,7 +105,6 @@ def numba_calculate(
 
 
 class NumbaGenericElectronSolver(PythonGenericElectronSolver, ABC):
-
     @abstractmethod
     def get_beam_simulation_functions(
         self,

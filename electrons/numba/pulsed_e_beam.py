@@ -8,9 +8,7 @@ BasePulsedBeamPDEsolver = get_pulsed_beam_pde_solver(NumbaGenericElectronSolver)
 
 
 class NumbaPulsedBeamPDEsolver(BasePulsedBeamPDEsolver, NumbaGenericElectronSolver):
-
     def get_beam_simulation_functions(self):
-
         # Make the variables local so numba.jit doesn't get mad
         electron_density_per_cm3 = self.electron_density_per_cm3
         delta_border = self.delta_border

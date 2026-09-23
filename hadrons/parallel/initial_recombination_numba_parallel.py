@@ -6,8 +6,9 @@ from numba import njit, prange
 
 from ..common_properties import alpha, no_z_electrode
 from ..geiss_utils import Geiss_RRD_cm
-from ..python.initial_recombination import \
-    single_track_PDEsolver as single_track_PDEsolver_base
+from ..python.initial_recombination import (
+    single_track_PDEsolver as single_track_PDEsolver_base,
+)
 
 # jitted functions defined outside the solver class as 'self' is not recogized as a supported type
 
@@ -35,12 +36,12 @@ def initialize_Gaussian_distriution_Gauss(
                 -(distance_from_center_cm**2) / track_radius_cm**2
             )
             no_initialised_charge_carriers += no_z * ion_density
-            positive_array[
-                i, j, no_z_electrode : (no_z_electrode + no_z)
-            ] += ion_density
-            negative_array[
-                i, j, no_z_electrode : (no_z_electrode + no_z)
-            ] += ion_density
+            positive_array[i, j, no_z_electrode : (no_z_electrode + no_z)] += (
+                ion_density
+            )
+            negative_array[i, j, no_z_electrode : (no_z_electrode + no_z)] += (
+                ion_density
+            )
 
     return no_initialised_charge_carriers, positive_array, negative_array
 
@@ -60,12 +61,12 @@ def initialize_Gaussian_distriution_Geiss(
             )
             ion_density = Geiss_RRD_cm(distance_from_center_cm, c, a0_cm, r_max_cm)
             no_initialised_charge_carriers += no_z * ion_density
-            positive_array[
-                i, j, no_z_electrode : (no_z_electrode + no_z)
-            ] += ion_density
-            negative_array[
-                i, j, no_z_electrode : (no_z_electrode + no_z)
-            ] += ion_density
+            positive_array[i, j, no_z_electrode : (no_z_electrode + no_z)] += (
+                ion_density
+            )
+            negative_array[i, j, no_z_electrode : (no_z_electrode + no_z)] += (
+                ion_density
+            )
 
     return no_initialised_charge_carriers, positive_array, negative_array
 
@@ -293,7 +294,9 @@ class single_track_PDEsolver(single_track_PDEsolver_base):
             raise ValueError(f"Invalid RDD model: {self.RDD_model}")
 
         if self.debug:
-            print(f"Gaussian distriution initialization time {time.time()-start_time}")
+            print(
+                f"Gaussian distriution initialization time {time.time() - start_time}"
+            )
 
         calculation_time = time.time()
 

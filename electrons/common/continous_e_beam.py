@@ -4,7 +4,6 @@ from electrons.common.generic_electron_solver import GenericElectronSolver
 
 
 def get_continous_beam_pde_solver(base_solver_class: GenericElectronSolver):
-
     class ContinousBeamPDEsolver(base_solver_class):
         def get_initialised_charge_carriers_after_beam(self):
             electron_density_per_cm3_s = self.electron_density_per_cm3 * self.dt
