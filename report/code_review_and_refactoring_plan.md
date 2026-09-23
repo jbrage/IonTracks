@@ -483,35 +483,51 @@ The team's own `origin/backend-benchmark` run on the 2019 DCPT case found Numba 
 
 ### 7.4 Implementation status (branch `v4`)
 
-Implemented in `src/iontracks/`, with 78 tests passing in about 5 s:
-- `Gas`, `ParallelPlateChamber` with sample points, and `PiecewiseConstant` time structures;
+Implemented in `src/iontracks/`, with 108 tests:
+- `Gas` (the particle sets W, ICRU 90; free-electron data after Götz et al.), `ParallelPlateChamber`
+  with sample points, and `PiecewiseConstant` time structures;
 - `Field` with exact local sources;
 - the episode planner with deduplication and a budget check;
-- the `Uniform1D` Numba point model (flux-limited drift, exact recombination, Ramo current);
+- `Uniform1D`, the 1D Numba point model:
+  - flux-limited drift, exact recombination, Ramo current;
+  - **free electrons** (exact attachment kernel);
+  - **space charge** (1D Gauss, with sub-cycling at the dielectric relaxation time);
+  - gap snapshots for diagnostics;
+- `Tile3D`, the **3D track model**: Poisson tracks with Gaussian profiles in a periodic tile, and
+  single tracks for initial recombination;
 - `solve_point` and `solve_field` (threads over points, shared episode cache);
-- Boag oracles, and space-charge validity parameters for continuous beams and for pulses.
+- analytic oracles:
+  - Boag pulsed and continuous;
+  - Fenwick & Kumar 2023 (free electrons, exact);
+  - Jaffé (a column parallel to the field);
+  - space-charge parameters for continuous beams and pulses.
 
 Measured accuracy:
 - Boag pulsed: 2×10⁻⁵ relative in (1 − f) at 400 cells;
-- Boag continuous: correct to second order;
-- conservation and the Ramo identity: 10⁻¹¹.
+- Fenwick & Kumar: 3×10⁻⁴ at 400 cells;
+- Jaffé, single track: 0.3 % (IonTracks v3: 0.7 %);
+- conservation and the Ramo identity: 10⁻¹¹ for every model and physics combination.
 
 Validation (`validation/`):
-- 26 quantitative checks and 5 diagnostic figures (`VALIDATION.md`);
-- two blind benchmarks against measurements, with no model input fitted to the compared data:
-  - DCPT 2019 scanned protons: Q(V)/Q(200 V) within 0.35 %;
-  - Risø 2026 pulsed electrons and photons: field ratios within 3.1 %. The residuals show the
-    expected signatures of free electrons and space charge.
+- `VALIDATION.md`: 29 checks;
+- `VALIDATION_TILE3D.md`: 6 checks;
+- `DIAGNOSTICS.md`: figures and animations of the carriers over time;
+- two blind benchmarks: DCPT 2019 (scanned protons) and Risø 2026 (pulsed electrons and photons).
+
+Across the two benchmarks, the space-charge term with Boag's ion constants worsens the voltage and
+field dependence, but it is needed for the pulse-overlap loss. The consistency of the ion,
+electron and space-charge parameters is the top open item (CLAUDE.md).
 
 Design notes arising from implementation:
 - **Back-diffusion is not modelled.** Diffusion against the field is not resolvable (boundary layer D/v ≈ 0.3 µm), so the upstream electrode reflects diffusion. The effect is about kT/(eV) ≈ 10⁻⁴.
-- **Kernel cost** is 24–40 ns per cell-step (single thread). That is about 7 s of CPU per sample point for a 0.5 s PBS layer at 200 cells.
+- **Kernel cost** is 24–40 ns per cell-step for 1D (single thread), about 2.5× that with space charge, and about 60 ns for 3D.
 - **Dedupe keys** use 9 significant digits because absolute-time round-off limits microsecond pulses late in a delivery.
+- **Explicit drift–Poisson coupling** must resolve the dielectric relaxation time ε₀/σ; otherwise dense plasmas reverse the field spuriously.
 
 Not yet done:
-- free electrons and space charge (1D);
-- the 3D track tile;
-- the initial-recombination slot (maintainer);
+- a consistent ion, electron and space-charge parameter set chosen from independent data;
+- oblique tracks;
+- a machine-log loader (postponed until a log is available);
 - stopping-power helpers;
 - further validation datasets (§5).
 
