@@ -27,6 +27,64 @@ def boag_pulsed_f(n0_cm3: float, chamber: ParallelPlateChamber, gas: Gas) -> flo
     return 1.0 if u == 0 else math.log1p(u) / u
 
 
+def _exp1(x: float) -> float:
+    """Exponential integral E1(x) for x > 0 (series below 1, continued fraction above)."""
+    if x <= 0:
+        raise ValueError("E1 needs x > 0")
+    if x <= 1.0:
+        total, term, k = 0.0, 1.0, 1
+        while True:
+            term *= -x / k
+            add = -term / k
+            total += add
+            if abs(add) < 1e-17 * abs(total) or k > 200:
+                break
+            k += 1
+        return -0.5772156649015329 - math.log(x) + total
+    # modified Lentz evaluation of the continued fraction (Numerical Recipes, expint with n = 1)
+    b = x + 1.0
+    c = 1.0 / 1e-300
+    d = 1.0 / b
+    h = d
+    for i in range(1, 200):
+        an = -i * i
+        b += 2.0
+        d = 1.0 / (an * d + b)
+        c = b + an / c
+        delta = c * d
+        h *= delta
+        if abs(delta - 1.0) < 1e-16:
+            break
+    return h * math.exp(-x)
+
+
+def boag_pulsed_free_electron_f(n0_cm3: float, chamber: ParallelPlateChamber, gas: Gas) -> float:
+    """Exact collection efficiency of Boag's pulsed model with free electrons.
+
+    Fenwick & Kumar (2023, Phys. Med. Biol. 68 015016): after an instantaneous uniform pulse,
+    electrons attach after an exponentially distributed drift of mean length lambda (the gas's
+    attachment length in the applied field), so the negative-ion density rises from the cathode as
+    1 - exp(-x / lambda). No diffusion, no space charge, no electron-ion recombination:
+
+        f = ln(1 + R e^R [E1(R exp(-d / lambda)) - E1(R)]) / u,    R = u lambda / d.
+    """
+    u = boag_pulsed_u(n0_cm3, chamber, gas)
+    lam = gas.attachment_length_cm(chamber.field_V_cm)
+    if u == 0:
+        return 1.0
+    if lam == 0.0:
+        return math.log1p(u) / u
+    r = u * lam / chamber.gap_cm
+    if r > 700:
+        raise ValueError("R = u lambda / d too large for this implementation")
+    d_over_lam = chamber.gap_cm / lam
+    if d_over_lam > 600:  # E1(x) = -gamma - ln x + O(x) for the vanishing argument x
+        e1_small = -0.5772156649015329 - math.log(r) + d_over_lam
+    else:
+        e1_small = _exp1(r * math.exp(-d_over_lam))
+    return math.log1p(r * math.exp(r) * (e1_small - _exp1(r))) / u
+
+
 def boag_continuous_xi2(q_cm3_s: float, chamber: ParallelPlateChamber, gas: Gas) -> float:
     """xi^2 = alpha q d^4 / (6 mu+ mu- V^2) for a constant uniform rate q (ion pairs/cm^3/s)."""
     mu_prod = gas.mu_pos_cm2_Vs * gas.mu_neg_cm2_Vs

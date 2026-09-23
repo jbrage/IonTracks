@@ -13,6 +13,7 @@ water, scanned row by row with 1 ms spot and 2 ms line switching. The checks cov
 
 import numpy as np
 import pytest
+from conftest import BOAG
 
 from iontracks import (
     Gas,
@@ -27,15 +28,14 @@ from iontracks.analytic import boag_quasi_static_loss
 from iontracks.constants import ELEMENTARY_CHARGE_C, MEV_TO_J
 from iontracks.synthetic import (
     PROTON_250MEV_S_WATER_MEV_CM2_G,
-    W_AIR_PROTONS_EV,
     cyclotron_pbs_field,
     protons_per_spot,
     rf_bunched,
 )
 
 CHAMBER = ParallelPlateChamber(gap_cm=0.2, voltage_V=200.0, sensitive_radius_cm=0.78)
-GAS = Gas.air(W_eV=W_AIR_PROTONS_EV)
-MODEL = Uniform1D(Grid1D(n_cells=120))
+GAS = Gas.air(particle="proton")
+MODEL = Uniform1D(Grid1D(n_cells=120), **BOAG)  # compared with Boag's quasi-static limit
 POINTS = CHAMBER.sample_points(n_rings=2, n_azimuth=6)
 
 

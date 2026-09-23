@@ -66,7 +66,7 @@ def _run_plan(plan, chamber, gas, model, cache, x_cm, y_cm, weight_cm2) -> Point
 def solve_point(
     source: PiecewiseConstant,
     chamber: ParallelPlateChamber,
-    gas: Gas | None = None,
+    gas: Gas,
     model=None,
     *,
     dedupe: bool = True,
@@ -75,9 +75,10 @@ def solve_point(
     """Recombination for a laterally uniform ionisation history.
 
     ``source`` is the ion-pair production rate density in cm^-3 s^-1 (for photon/electron beams
-    use ``dose_rate * gas.ion_pairs_per_cm3_per_Gy()``).
+    use ``dose_rate * gas.ion_pairs_per_cm3_per_Gy()``). ``gas`` is required because W depends
+    on the particle (``Gas.air(particle=...)``). The default model is ``Uniform1D()`` with free
+    electrons and space charge.
     """
-    gas = gas or Gas.air()
     model = model or Uniform1D()
     plan = plan_point(source, chamber, gas, model, dedupe=dedupe)
     _check_budget(plan.estimated_seconds, budget_s, plan.summary())
@@ -88,7 +89,7 @@ def solve_point(
 def plan_field(
     field: Field,
     chamber: ParallelPlateChamber,
-    gas: Gas | None = None,
+    gas: Gas,
     model=None,
     *,
     points: SamplePoints | None = None,
@@ -96,7 +97,6 @@ def plan_field(
     dedupe: bool = True,
 ) -> tuple[SamplePoints, list[PointPlan]]:
     """Plan every sample point without running anything (for inspection and budgeting)."""
-    gas = gas or Gas.air()
     model = model or Uniform1D()
     points = points if points is not None else chamber.sample_points()
     plans = []
@@ -109,7 +109,7 @@ def plan_field(
 def solve_field(
     field: Field,
     chamber: ParallelPlateChamber,
-    gas: Gas | None = None,
+    gas: Gas,
     model=None,
     *,
     points: SamplePoints | None = None,
@@ -124,7 +124,6 @@ def solve_field(
     run in parallel threads (the Numba kernels release the GIL). Episodes with identical shape
     are simulated once across all points.
     """
-    gas = gas or Gas.air()
     model = model or Uniform1D()
     points, plans = plan_field(
         field, chamber, gas, model, points=points, cutoff_sigma=cutoff_sigma, dedupe=dedupe

@@ -12,7 +12,7 @@ import numpy as np
 from iontracks import Field, Gas, Grid1D, ParallelPlateChamber, Uniform1D, plan_field, solve_field
 
 chamber = ParallelPlateChamber(gap_cm=0.2, voltage_V=200.0, sensitive_radius_cm=0.78)  # Roos-like
-gas = Gas.air()  # separate mobilities (mu+ = 1.36, mu- = 2.1 cm^2/Vs), Einstein diffusion
+gas = Gas.air(particle="proton")  # W for protons; mu+ = 1.36, mu- = 2.1 cm^2/Vs; free electrons
 
 # 7 x 7 raster, 5 mm spot spacing, sigma 4 mm, 2 ms dwell + 0.5 ms move per spot
 n_side, spacing_cm = 7, 0.5

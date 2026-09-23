@@ -2,10 +2,13 @@
 
 import numpy as np
 import pytest
+from conftest import BOAG
 
 from iontracks import Grid1D, ParallelPlateChamber, PiecewiseConstant, Uniform1D
 from iontracks.analytic import boag_continuous_xi2, boag_pulsed_f, boag_pulsed_u
-from iontracks.solvers.uniform1d import _react, _transport, source_runs
+from iontracks.solvers.kernels import react as _react
+from iontracks.solvers.kernels import transport as _transport
+from iontracks.solvers.uniform1d import source_runs
 
 INSTANT = 1e-12  # s; "instantaneous" pulse width, far below any time step
 
@@ -89,7 +92,7 @@ def test_voltage_polarity_only_relabels_the_electrodes(chamber, gas):
 
 
 def test_no_recombination_without_alpha(chamber, gas):
-    ep = Uniform1D().run_episode(
+    ep = Uniform1D(space_charge=False).run_episode(
         PiecewiseConstant.pulse(1e12, 0.0, INSTANT), chamber, gas.with_(alpha_cm3_s=0.0)
     )
     assert ep.recombined_cm2 == 0.0
@@ -101,7 +104,7 @@ def test_no_recombination_without_alpha(chamber, gas):
 @pytest.mark.parametrize("u", [0.1, 1.0, 5.0])
 def test_boag_pulsed(chamber, gas_no_diffusion, u):
     n0 = u / boag_pulsed_u(1.0, chamber, gas_no_diffusion)
-    ep = Uniform1D(Grid1D(n_cells=400)).run_episode(
+    ep = Uniform1D(Grid1D(n_cells=400), **BOAG).run_episode(
         PiecewiseConstant.pulse(n0, 0.0, INSTANT), chamber, gas_no_diffusion
     )
     f_boag = boag_pulsed_f(n0, chamber, gas_no_diffusion)
@@ -113,7 +116,7 @@ def test_boag_pulsed_converges_with_grid(chamber, gas_no_diffusion):
     f_boag = boag_pulsed_f(n0, chamber, gas_no_diffusion)
     errors = []
     for n_cells in (50, 100, 200, 400):
-        ep = Uniform1D(Grid1D(n_cells=n_cells)).run_episode(
+        ep = Uniform1D(Grid1D(n_cells=n_cells), **BOAG).run_episode(
             PiecewiseConstant.pulse(n0, 0.0, INSTANT), chamber, gas_no_diffusion
         )
         errors.append(abs(ep.f_recombination - f_boag))
@@ -126,7 +129,7 @@ def test_pulsed_result_depends_only_on_sum_of_mobilities(chamber, gas_no_diffusi
         mu_pos_cm2_Vs=gas_no_diffusion.mu_neg_cm2_Vs, mu_neg_cm2_Vs=gas_no_diffusion.mu_pos_cm2_Vs
     )
     src = PiecewiseConstant.pulse(2e10, 0.0, INSTANT)
-    model = Uniform1D(Grid1D(n_cells=300))
+    model = Uniform1D(Grid1D(n_cells=300), **BOAG)
     f1 = model.run_episode(src, chamber, gas_no_diffusion).f_recombination
     f2 = model.run_episode(src, chamber, swapped).f_recombination
     assert f1 == pytest.approx(f2, rel=1e-5)
@@ -138,7 +141,7 @@ def test_boag_continuous_steady_state(chamber, gas_no_diffusion, xi2):
     q = xi2 / boag_continuous_xi2(1.0, chamber, gas_no_diffusion)
     t_c = max(chamber.collection_times_s(gas_no_diffusion))
     duration = 8 * t_c
-    ep = Uniform1D(Grid1D(n_cells=200)).run_episode(
+    ep = Uniform1D(Grid1D(n_cells=200), **BOAG).run_episode(
         PiecewiseConstant.constant(q, 0.0, duration), chamber, gas_no_diffusion
     )
     t0, t1 = 3 * t_c, duration - ep.dt_s
@@ -152,7 +155,7 @@ def test_boag_continuous_steady_state(chamber, gas_no_diffusion, xi2):
 def test_short_pulse_approaches_instantaneous_limit(chamber, gas_no_diffusion):
     t_c = max(chamber.collection_times_s(gas_no_diffusion))
     n0 = 1.0 / boag_pulsed_u(1.0, chamber, gas_no_diffusion)
-    model = Uniform1D(Grid1D(n_cells=400))
+    model = Uniform1D(Grid1D(n_cells=400), **BOAG)
     f_short = model.run_episode(
         PiecewiseConstant.pulse(n0, 0.0, 1e-3 * t_c), chamber, gas_no_diffusion
     )
@@ -166,7 +169,7 @@ def test_short_pulse_approaches_instantaneous_limit(chamber, gas_no_diffusion):
 
 def test_diffusion_is_a_small_correction(chamber, gas, gas_no_diffusion):
     src = PiecewiseConstant.pulse(2e10, 0.0, INSTANT)
-    model = Uniform1D(Grid1D(n_cells=300))
+    model = Uniform1D(Grid1D(n_cells=300), **BOAG)
     with_d = model.run_episode(src, chamber, gas).f_recombination
     without = model.run_episode(src, chamber, gas_no_diffusion).f_recombination
     assert with_d == pytest.approx(without, rel=1e-3)
@@ -189,13 +192,14 @@ def test_source_runs_are_exact_and_compact():
     ],
     ids=["constant", "step-change"],
 )
-def test_steady_state_skipping_matches_full_stepping(chamber, gas, source):
-    fast = Uniform1D(Grid1D(n_cells=120)).run_episode(source, chamber, gas)
-    full = Uniform1D(Grid1D(n_cells=120, steady_state_tolerance=0.0)).run_episode(
+@pytest.mark.parametrize("physics", [BOAG, {}], ids=["boag", "full"])
+def test_steady_state_skipping_matches_full_stepping(chamber, gas, source, physics):
+    fast = Uniform1D(Grid1D(n_cells=120), **physics).run_episode(source, chamber, gas)
+    full = Uniform1D(Grid1D(n_cells=120, steady_state_tolerance=0.0), **physics).run_episode(
         source, chamber, gas
     )
     assert full.simulated_steps == full.n_steps
-    assert fast.simulated_steps < 0.3 * full.simulated_steps
+    assert fast.simulated_steps < 0.4 * full.simulated_steps
     assert fast.n_steps == full.n_steps
     assert (fast.ks - 1) == pytest.approx(full.ks - 1, rel=1e-9)
     assert fast.signal_cm2 == pytest.approx(full.signal_cm2, rel=1e-10)

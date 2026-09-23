@@ -21,8 +21,6 @@ from .time_structure import PiecewiseConstant
 # IonTracks v3 (legacy/hadrons/data_LET), air converted with rho = 1.20479e-3 g/cm^3.
 PROTON_250MEV_S_AIR_MEV_CM2_G = 3.446
 PROTON_250MEV_S_WATER_MEV_CM2_G = 3.893
-# ICRU Report 90: W_air for protons (high-energy asymptote).
-W_AIR_PROTONS_EV = 34.44
 
 
 def protons_per_spot(

@@ -4,15 +4,24 @@ Per time step (Strang splitting): source, 1/2 recombination, drift + diffusion o
 1/2 recombination.
 
 * Source: the exact integral of the rate over the step, spread uniformly over the gap.
+* Free electrons (optional): the electrons of each step drift towards the anode and attach to
+  neutral molecules with a field-dependent attachment length. Attachment (~10 ns) is far shorter
+  than a time step, so it is applied instantly within the step (exact exponential kernel, per
+  cell). Electrons that reach the anode first are collected directly, and electron-ion
+  recombination is neglected (Boag et al. 1996, Fenwick & Kumar 2023).
 * Recombination: exact local solution of dn+/dt = dn-/dt = -alpha n+ n-. It is unconditionally
   stable and positive.
 * Drift: finite-volume, flux-limited (van Leer) upwind scheme. It is positivity preserving for
   Courant <= 1 and exact at Courant = 1 (the faster species by default).
+* Space charge (optional): the field follows Gauss's law for the net ion charge at a fixed
+  voltage. In a distorted field the drift uses face velocities and sub-cycles so that no cell
+  loses more than its content; charge may then leave through either electrode.
 * Diffusion: explicit. The collecting electrode absorbs and the upstream electrode reflects.
   Diffusion against the field (loss ~ kT/(eV) ~ 1e-4) is not modelled: its boundary layer
   D/v ~ 0.3 um cannot be resolved by the grid. D dt / dz^2 <= 1/3 keeps it positive.
-* Signal: the induced (Ramo-Shockley) current, from the displacement of every face flux. After
-  complete collection its time integral equals the charge an electrometer reads.
+* Signal: the induced (Ramo-Shockley) current, from the displacement of every face flux,
+  including the free electrons. After complete collection its time integral equals the charge
+  an electrometer reads.
 
 All tallies are per cm^2 of electrode area.
 """
@@ -24,127 +33,33 @@ import numpy as np
 from numba import njit
 
 from ..chamber import ParallelPlateChamber
-from ..constants import ELEMENTARY_CHARGE_C
+from ..constants import ELEMENTARY_CHARGE_C, VACUUM_PERMITTIVITY_F_CM
 from ..gas import Gas
 from ..time_structure import PiecewiseConstant
+from .kernels import (
+    attach,
+    attachment_cells,
+    grow,
+    outflow_courant,
+    react,
+    solve_field,
+    transport,
+    transport_var,
+)
 
 # single-thread cost per cell and step (both species), measured 24-40 ns on a 2024 laptop;
 # used only for the preflight estimate
 SECONDS_PER_CELL_STEP = 4e-8
-
-
-@njit(cache=True, nogil=True)
-def _react(a, c, x):
-    """Exact recombination over a sub-step with x = alpha * dt. Returns the summed density loss."""
-    lost = 0.0
-    for j in range(a.shape[0]):
-        aj = a[j]
-        cj = c[j]
-        if aj <= 0.0 or cj <= 0.0:
-            continue
-        ax = aj * x
-        cx = cj * x
-        if (
-            ax < 1e-6 and cx < 1e-6
-        ):  # weak recombination: 2nd-order Taylor, error O((n x)^2) < 1e-12
-            loss = aj * cx * (1.0 - 0.5 * (ax + cx))
-            lost += loss
-            a[j] = aj - loss
-            c[j] = cj - loss
-            continue
-        d = aj - cj  # conserved by the reaction
-        if d == 0.0:
-            an = aj / (1.0 + aj * x)
-        else:
-            arg = -d * x
-            if abs(arg) < 1e-4:  # series: error ~ arg^3 / 24 relative
-                em1 = arg * (1.0 + arg * (0.5 + arg * (1.0 / 6.0)))
-                an = aj * d / (d - cj * em1)
-            elif arg > 700.0:  # a is exhausted (d < 0, strong recombination)
-                an = 0.0
-            else:
-                an = aj * d / (d - cj * math.expm1(arg))
-        if an < 0.0:
-            an = 0.0
-        elif an > aj:
-            an = aj
-        cn = an - d
-        if cn < 0.0:
-            cn = 0.0
-        lost += aj - an
-        a[j] = an
-        c[j] = cn
-    return lost
-
-
-@njit(cache=True, nogil=True)
-def _transport(n, courant, lam, flux):
-    """Drift towards +index and diffuse one species in place.
-
-    ``flux`` is scratch space of length N + 1. Returns (outflow, displacement): the outflow through
-    the collecting electrode (a density; multiply by dz) and the displacement in units of
-    dz^2 * density (sum over faces of flux times lever arm, lever 1 inside, 1/2 at the electrode).
-    """
-    N = n.shape[0]
-    displacement = 0.0
-    # --- drift: zero inflow at face 0, upwind outflow at face N
-    if courant > 0.0:
-        flux[0] = 0.0
-        for f in range(1, N):
-            up = n[f - 1]
-            dn = n[f] - up
-            limited = 0.0
-            if dn != 0.0:
-                upup = n[f - 2] if f >= 2 else 0.0
-                r = (up - upup) / dn
-                if r > 0.0:
-                    limited = 2.0 * r / (1.0 + r)  # van Leer
-            flux[f] = courant * (up + 0.5 * (1.0 - courant) * limited * dn)
-        flux[N] = courant * n[N - 1]
-        for f in range(1, N):
-            displacement += flux[f]
-        displacement += 0.5 * flux[N]
-        outflow = flux[N]
-        for j in range(N):
-            n[j] -= flux[j + 1] - flux[j]
-    else:
-        outflow = 0.0
-    # --- diffusion: reflecting upstream electrode (face 0), absorbing collecting electrode (face N)
-    if lam > 0.0:
-        flux[0] = 0.0
-        for f in range(1, N):
-            flux[f] = lam * (n[f - 1] - n[f])
-        flux[N] = 2.0 * lam * n[N - 1]
-        for f in range(1, N):
-            displacement += flux[f]
-        displacement += 0.5 * flux[N]
-        outflow += flux[N]
-        for j in range(N):
-            n[j] -= flux[j + 1] - flux[j]
-    return outflow, displacement
-
-
-@njit(cache=True, nogil=True)
-def _grow(arr, n_used):
-    out = np.empty(2 * arr.shape[0], dtype=arr.dtype)
-    out[:n_used] = arr[:n_used]
-    return out
+SPACE_CHARGE_COST = 2.5  # relative cost of a cell-step with space charge (Poisson, face speeds)
+SPACE_CHARGE_MARGIN = 1.05  # time-step margin: field distortions below 5 % need no sub-cycling
+FIELD_COEF_V_CM = ELEMENTARY_CHARGE_C / VACUUM_PERMITTIVITY_F_CM  # e / eps0
 
 
 @njit(cache=True, nogil=True)
 def _simulate(
-    run_len,
-    run_src,
-    n_cells,
-    c_pos,
-    c_neg,
-    lam_pos,
-    lam_neg,
-    alpha_dt,
-    max_steps,
-    empty_tol,
-    ss_tol,
-):
+    run_len, run_src, n_cells, dz, dt, e0, mu_pos, mu_neg, lam_pos, lam_neg, alpha_dt,
+    fe_on, mu_e, att_a, att_b, att_c, sc_on, sc_coef, max_steps, empty_tol, ss_tol, snap_steps,
+):  # fmt: skip
     """Step through source runs (constant source per step within a run) until the gap is empty.
 
     Steady-state skipping: when, for three consecutive steps of a run with constant source, each
@@ -153,20 +68,40 @@ def _simulate(
     of the run is tallied without stepping. Records (count, per-step values) keep the time series
     compact: one record per simulated step, one per skipped block.
     """
-    n_pos = np.zeros(n_cells)
-    n_neg = np.zeros(n_cells)
+    N = n_cells
+    n_pos = np.zeros(N)
+    n_neg = np.zeros(N)
     n_neg_rev = n_neg[::-1]  # negative ions drift towards index 0: transport them reversed
-    flux = np.zeros(n_cells + 1)
+    flux = np.zeros(N + 1)
+    ef = np.full(N + 1, e0)
+    cf_pos = np.zeros(N + 1)
+    cf_neg = np.zeros(N + 1)
+    prod = np.zeros(N)
+    ell = np.zeros(N)
+    ell0 = attachment_cells(e0, mu_e, att_a, att_b, att_c, dz) if fe_on else 0.0
+    for k in range(N):
+        ell[k] = ell0
+    c_pos0 = mu_pos * e0 * dt / dz
+    c_neg0 = mu_neg * e0 * dt / dz
     cap = 1024
     rec_count = np.empty(cap, dtype=np.int64)
     rec_disp = np.empty(cap)
     rec_lost = np.empty(cap)
     rec_src = np.empty(cap)
     n_rec = 0
+    n_snap = snap_steps.shape[0]
+    snap_pos = np.zeros((n_snap, N))
+    snap_neg = np.zeros((n_snap, N))
+    snap_e = np.zeros((n_snap, N + 1))
+    i_snap = 0
+    # tallies: production, recombination, collection per species and electrode, free electrons
     produced = 0.0
     recombined = 0.0
-    coll_pos = 0.0
-    coll_neg = 0.0
+    pos_fwd = 0.0
+    pos_bwd = 0.0
+    neg_fwd = 0.0
+    neg_bwd = 0.0
+    free_total = 0.0
     half = 0.5 * alpha_dt
     n_runs = run_len.shape[0]
     run = 0
@@ -177,37 +112,114 @@ def _simulate(
     prev_d = -1.0
     calm = 0
     step = 0
+    max_sub = 1
     emptied = False
     while step < max_steps:
         s = run_src[run] if run < n_runs else 0.0
+        distorted = False
+        if sc_on:
+            distorted = solve_field(n_pos, n_neg, e0, sc_coef, dz, ef) > 1e-12
+        free = 0.0
+        d_e = 0.0
         if s > 0.0:
-            for j in range(n_cells):
+            for j in range(N):
                 n_pos[j] += s
-                n_neg[j] += s
-            produced += s * n_cells
-        lost = _react(n_pos, n_neg, half) if half > 0.0 else 0.0
-        out1, d1 = _transport(n_pos, c_pos, lam_pos, flux)
-        out2, d2 = _transport(n_neg_rev, c_neg, lam_neg, flux)
+            if fe_on:
+                if distorted:
+                    for k in range(N):
+                        j = N - 1 - k
+                        ell[k] = attachment_cells(
+                            0.5 * (ef[j] + ef[j + 1]), mu_e, att_a, att_b, att_c, dz
+                        )
+                else:
+                    for k in range(N):
+                        ell[k] = ell0
+                for k in range(N):
+                    prod[k] = s
+                free, d_e = attach(n_neg_rev, prod, ell)
+            else:
+                for j in range(N):
+                    n_neg[j] += s
+            produced += s * N
+        lost = react(n_pos, n_neg, half) if half > 0.0 else 0.0
+        o1f = 0.0
+        o1b = 0.0
+        o2f = 0.0
+        o2b = 0.0
+        d = d_e
+        use_var = False
+        n_relax = 1
+        if sc_on:
+            distortion = solve_field(n_pos, n_neg, e0, sc_coef, dz, ef)
+            # dielectric relaxation time eps0 / sigma: an explicit drift-Poisson coupling must
+            # resolve it, or it overshoots and reverses the field
+            sigma = 0.0
+            for j in range(N):
+                sj = mu_pos * n_pos[j] + mu_neg * n_neg[j]
+                if sj > sigma:
+                    sigma = sj
+            n_relax = max(1, int(math.ceil(dt * sc_coef * sigma / 0.9)))
+            use_var = distortion > 1e-12 or n_relax > 1
+        if use_var:
+            # sub-cycle the drift: no cell may lose more than 90 % of its content per sub-step,
+            # and each sub-step stays within the dielectric relaxation time
+            n_sub = 1
+            sub = 0
+            while sub < n_sub:
+                if sub > 0:
+                    solve_field(n_pos, n_neg, e0, sc_coef, dz, ef)
+                for f in range(N + 1):
+                    cf_pos[f] = mu_pos * ef[f] * dt / (dz * n_sub)
+                    cf_neg[f] = mu_neg * ef[N - f] * dt / (dz * n_sub)
+                if sub == 0:
+                    worst = max(outflow_courant(cf_pos), outflow_courant(cf_neg))
+                    n_sub = n_relax
+                    if worst > 1.0:
+                        n_sub = max(n_sub, int(math.ceil(worst / 0.9)))
+                    for f in range(N + 1):
+                        cf_pos[f] /= n_sub
+                        cf_neg[f] /= n_sub
+                a, b, c = transport_var(n_pos, cf_pos, lam_pos / n_sub, flux)
+                o1f += a
+                o1b += b
+                d += c
+                a, b, c = transport_var(n_neg_rev, cf_neg, lam_neg / n_sub, flux)
+                o2f += a
+                o2b += b
+                d += c
+                sub += 1
+            if n_sub > max_sub:
+                max_sub = n_sub
+        else:
+            o1f, dd = transport(n_pos, c_pos0, lam_pos, flux)
+            d += dd
+            o2f, dd = transport(n_neg_rev, c_neg0, lam_neg, flux)
+            d += dd
         if half > 0.0:
-            lost += _react(n_pos, n_neg, half)
-        d = d1 + d2
-        coll_pos += out1
-        coll_neg += out2
+            lost += react(n_pos, n_neg, half)
+        o2f += free
+        out1 = o1f + o1b
+        out2 = o2f + o2b
         recombined += lost
+        pos_fwd += o1f
+        pos_bwd += o1b
+        neg_fwd += o2f
+        neg_bwd += o2b
+        free_total += free
         if n_rec == rec_count.shape[0]:
-            rec_count = _grow(rec_count, n_rec)
-            rec_disp = _grow(rec_disp, n_rec)
-            rec_lost = _grow(rec_lost, n_rec)
-            rec_src = _grow(rec_src, n_rec)
+            rec_count = grow(rec_count, n_rec)
+            rec_disp = grow(rec_disp, n_rec)
+            rec_lost = grow(rec_lost, n_rec)
+            rec_src = grow(rec_src, n_rec)
         rec_count[n_rec] = 1
         rec_disp[n_rec] = d
         rec_lost[n_rec] = lost
-        rec_src[n_rec] = s * n_cells
+        rec_src[n_rec] = s * N
         n_rec += 1
         step += 1
         if run < n_runs:
             left -= 1
-            scale = s * n_cells
+            scale = s * N
             # steady state = per-species balance (production = outflow + recombination, so the
             # gap content no longer changes) AND unchanged per-step tallies. The balance bounds
             # the conservation error of the skipped block by ss_tol.
@@ -228,19 +240,22 @@ def _simulate(
             prev_d = d
             if calm >= 3 and left > 0 and s > 0.0:
                 k = min(left, max_steps - step)
-                produced += s * n_cells * k
+                produced += s * N * k
                 recombined += lost * k
-                coll_pos += out1 * k
-                coll_neg += out2 * k
+                pos_fwd += o1f * k
+                pos_bwd += o1b * k
+                neg_fwd += o2f * k
+                neg_bwd += o2b * k
+                free_total += free * k
                 if n_rec == rec_count.shape[0]:
-                    rec_count = _grow(rec_count, n_rec)
-                    rec_disp = _grow(rec_disp, n_rec)
-                    rec_lost = _grow(rec_lost, n_rec)
-                    rec_src = _grow(rec_src, n_rec)
+                    rec_count = grow(rec_count, n_rec)
+                    rec_disp = grow(rec_disp, n_rec)
+                    rec_lost = grow(rec_lost, n_rec)
+                    rec_src = grow(rec_src, n_rec)
                 rec_count[n_rec] = k
                 rec_disp[n_rec] = d
                 rec_lost[n_rec] = lost
-                rec_src[n_rec] = s * n_cells
+                rec_src[n_rec] = s * N
                 n_rec += 1
                 step += k
                 left -= k
@@ -253,22 +268,31 @@ def _simulate(
                 prev_d = -1.0
                 if run < n_runs:
                     left = run_len[run]
-        else:
+        # snapshots of the state after the steps done so far (constant inside a skipped block)
+        while i_snap < n_snap and snap_steps[i_snap] < step:
+            if sc_on:
+                solve_field(n_pos, n_neg, e0, sc_coef, dz, ef)
+            snap_pos[i_snap, :] = n_pos
+            snap_neg[i_snap, :] = n_neg
+            snap_e[i_snap, :] = ef
+            i_snap += 1
+        if run >= n_runs:
             content = 0.0
-            for j in range(n_cells):
+            for j in range(N):
                 content += n_pos[j] + n_neg[j]
             if content <= 2.0 * empty_tol * produced:
                 emptied = True
                 break
     remaining_pos = 0.0
     remaining_neg = 0.0
-    for j in range(n_cells):
+    for j in range(N):
         remaining_pos += n_pos[j]
         remaining_neg += n_neg[j]
     return (
-        produced, recombined, coll_pos, coll_neg, remaining_pos, remaining_neg, step, emptied,
-        rec_count[:n_rec].copy(), rec_disp[:n_rec].copy(), rec_lost[:n_rec].copy(),
-        rec_src[:n_rec].copy(),
+        produced, recombined, pos_fwd, pos_bwd, neg_fwd, neg_bwd, free_total, remaining_pos,
+        remaining_neg, step, emptied, max_sub, rec_count[:n_rec].copy(), rec_disp[:n_rec].copy(),
+        rec_lost[:n_rec].copy(), rec_src[:n_rec].copy(), snap_pos[:i_snap].copy(),
+        snap_neg[:i_snap].copy(), snap_e[:i_snap].copy(),
     )  # fmt: skip
 
 
@@ -318,6 +342,17 @@ class Steps:
 
 
 @dataclass(frozen=True)
+class Snapshots:
+    """Gap profiles after selected steps (index 0 of the space axis is z = 0, the anode)."""
+
+    times_s: np.ndarray  # (n,)
+    z_cm: np.ndarray  # (N,) cell centres
+    n_pos_cm3: np.ndarray  # (n, N)
+    n_neg_cm3: np.ndarray  # (n, N)
+    field_V_cm: np.ndarray  # (n, N + 1) at the cell faces; + points from anode to cathode
+
+
+@dataclass(frozen=True)
 class EpisodeResult:
     """Outcome of one episode (source starting at t = 0) per cm^2 of electrode area.
 
@@ -330,15 +365,20 @@ class EpisodeResult:
     n_steps: int
     produced_cm2: float
     recombined_cm2: float
-    collected_pos_cm2: float  # positive ions reaching their collecting electrode
-    collected_neg_cm2: float
+    collected_pos_cm2: float  # positive ions reaching an electrode
+    collected_neg_cm2: float  # negative charge (ions and free electrons) reaching an electrode
+    free_electrons_cm2: float  # electrons collected before attaching
+    backflow_pos_cm2: float  # positive ions collected on the anode (field reversal)
+    backflow_neg_cm2: float  # negative ions collected on the cathode (field reversal)
     remaining_cm2: float  # ion pairs still in the gap at the end (0 when emptied)
     emptied: bool
     simulated_steps: int  # steps actually computed (the rest was skipped at steady state)
+    max_substeps: int  # largest drift sub-cycling of a step (space charge)
     record_steps: np.ndarray
     induced_per_step_cm2: np.ndarray  # induced charge per step / e
     recombined_per_step_cm2: np.ndarray
     source_per_step_cm2: np.ndarray
+    snapshots: Snapshots | None = None
 
     @property
     def signal_cm2(self) -> float:
@@ -357,8 +397,13 @@ class EpisodeResult:
 
     @property
     def collection_efficiency(self) -> float:
-        """Signal / produced. Equals f_recombination once the gap is empty (no back-diffusion)."""
+        """Signal / produced. Equals f_recombination once the gap is empty and no charge was
+        collected on the wrong electrode (no back-diffusion is modelled)."""
         return self.signal_cm2 / self.produced_cm2
+
+    @property
+    def free_electron_fraction(self) -> float:
+        return self.free_electrons_cm2 / self.produced_cm2
 
     @property
     def record_edges_s(self) -> np.ndarray:
@@ -386,15 +431,23 @@ class EpisodeResult:
 
 @dataclass(frozen=True)
 class Uniform1D:
-    """Point model for laterally uniform ionisation (no track structure, no space charge)."""
+    """Point model for laterally uniform ionisation (no track structure).
+
+    ``free_electrons`` needs a gas with free-electron data (``Gas.air`` has it).
+    ``space_charge`` makes the field follow the ion charge in the gap. Both are on by default;
+    switch them off to compare with Boag's classic theories.
+    """
 
     grid: Grid1D = Grid1D()
+    free_electrons: bool = True
+    space_charge: bool = True
     seconds_per_cell_step = SECONDS_PER_CELL_STEP  # class constant for the preflight estimate
 
     def steps(self, chamber: ParallelPlateChamber, gas: Gas) -> Steps:
         dz = chamber.gap_cm / self.grid.n_cells
         v_pos, v_neg = chamber.drift_velocities_cm_s(gas)
-        dt = self.grid.courant * dz / max(v_pos, v_neg)
+        margin = SPACE_CHARGE_MARGIN if self.space_charge else 1.0
+        dt = self.grid.courant * dz / (margin * max(v_pos, v_neg))
         d_max = max(gas.D_pos_cm2_s, gas.D_neg_cm2_s)
         if d_max > 0:
             dt = min(dt, self.grid.diffusion_number * dz * dz / d_max)
@@ -411,7 +464,8 @@ class Uniform1D:
         """Beam-off time after which the gap is empty to far below any tolerance.
 
         Slow-species transit time plus 8 diffusion widths, with a 25 % margin for the numerical
-        tail of the limited scheme.
+        tail of the limited scheme. Strong space charge slows the collection down; the solver then
+        warns (episode not emptied, or episodes interacting).
         """
         t_pos, t_neg = chamber.collection_times_s(gas)
         if t_pos >= t_neg:
@@ -425,7 +479,7 @@ class Uniform1D:
     def estimate_cell_steps(
         self, source: PiecewiseConstant, chamber: ParallelPlateChamber, gas: Gas
     ) -> float:
-        """Steps that will actually be simulated, times cells.
+        """Steps that will actually be simulated, times cells (weighted by the relative cost).
 
         Within each constant-rate interval, stepping stops about two memory times after the rate
         changed (steady state), so long constant segments cost the same as short ones.
@@ -434,35 +488,77 @@ class Uniform1D:
         memory = self.memory_time_s(chamber, gas)
         widths = np.diff(source.edges)
         simulated_s = float(np.minimum(widths, 3.0 * memory).sum()) + memory
-        return (math.ceil(simulated_s / dt) + 2 * source.rates.size) * self.grid.n_cells
+        cost = SPACE_CHARGE_COST if self.space_charge else 1.0
+        return cost * (math.ceil(simulated_s / dt) + 2 * source.rates.size) * self.grid.n_cells
 
     def run_episode(
-        self, source: PiecewiseConstant, chamber: ParallelPlateChamber, gas: Gas
+        self,
+        source: PiecewiseConstant,
+        chamber: ParallelPlateChamber,
+        gas: Gas,
+        snapshot_times_s=None,
     ) -> EpisodeResult:
-        """Simulate a source that starts at t = 0 until the gap is empty."""
+        """Simulate a source that starts at t = 0 until the gap is empty.
+
+        ``snapshot_times_s`` (optional) records the gap profiles at the end of the steps that
+        contain these times.
+        """
+        if self.free_electrons and not gas.has_free_electrons:
+            raise ValueError(
+                f"gas {gas.name!r} has no free-electron data: use Gas.air(...) or "
+                "Uniform1D(free_electrons=False)"
+            )
         st = self.steps(chamber, gas)
         run_len, run_src = source_runs(source, st.dt_s)
         n_src = int(run_len.sum())
-        max_steps = n_src + math.ceil(3.0 * self.memory_time_s(chamber, gas) / st.dt_s) + 16
-        (produced, recombined, coll_pos, coll_neg, rem_pos, rem_neg, n_steps, emptied,
-         rec_count, rec_disp, rec_lost, rec_src) = _simulate(
-            run_len, run_src, self.grid.n_cells, st.courant_pos, st.courant_neg, st.lam_pos,
-            st.lam_neg, gas.alpha_cm3_s * st.dt_s, max_steps, self.grid.empty_tolerance,
-            self.grid.steady_state_tolerance,
+        # strong space charge screens the field and slows the collection down: allow longer
+        drain = 20.0 if self.space_charge else 3.0
+        max_steps = n_src + math.ceil(drain * self.memory_time_s(chamber, gas) / st.dt_s) + 16
+        if snapshot_times_s is None:
+            snap_steps = np.zeros(0, dtype=np.int64)
+        else:
+            snap_steps = np.unique(
+                np.maximum(np.floor(np.asarray(snapshot_times_s, float) / st.dt_s), 0)
+            ).astype(np.int64)
+        fe = self.free_electrons
+        mu_e = gas.electron_mobility_cm2_Vs if fe else 0.0
+        att = gas.attachment_rate_s if fe else (1.0, 0.0, 0.0)
+        (produced, recombined, pos_fwd, pos_bwd, neg_fwd, neg_bwd, free, rem_pos, rem_neg,
+         n_steps, emptied, max_sub, rec_count, rec_disp, rec_lost, rec_src, s_pos, s_neg,
+         s_e) = _simulate(
+            run_len, run_src, self.grid.n_cells, st.dz_cm, st.dt_s, chamber.field_V_cm,
+            gas.mu_pos_cm2_Vs, gas.mu_neg_cm2_Vs, st.lam_pos, st.lam_neg,
+            gas.alpha_cm3_s * st.dt_s, fe, mu_e, att[0], att[1], att[2], self.space_charge,
+            FIELD_COEF_V_CM, max_steps, self.grid.empty_tolerance,
+            self.grid.steady_state_tolerance, snap_steps,
         )  # fmt: skip
         dz = st.dz_cm
+        snapshots = None
+        if snap_steps.size:
+            snapshots = Snapshots(
+                times_s=(snap_steps[: s_pos.shape[0]] + 1) * st.dt_s,
+                z_cm=(np.arange(self.grid.n_cells) + 0.5) * dz,
+                n_pos_cm3=s_pos,
+                n_neg_cm3=s_neg,
+                field_V_cm=s_e,
+            )
         return EpisodeResult(
             dt_s=st.dt_s,
             n_steps=int(n_steps),
             produced_cm2=produced * dz,
             recombined_cm2=recombined * dz,
-            collected_pos_cm2=coll_pos * dz,
-            collected_neg_cm2=coll_neg * dz,
+            collected_pos_cm2=(pos_fwd + pos_bwd) * dz,
+            collected_neg_cm2=(neg_fwd + neg_bwd) * dz,
+            free_electrons_cm2=free * dz,
+            backflow_pos_cm2=pos_bwd * dz,
+            backflow_neg_cm2=neg_bwd * dz,
             remaining_cm2=0.5 * (rem_pos + rem_neg) * dz,
             emptied=bool(emptied),
             simulated_steps=int(rec_count.size),
+            max_substeps=int(max_sub),
             record_steps=rec_count,
             induced_per_step_cm2=rec_disp * dz * dz / chamber.gap_cm,
             recombined_per_step_cm2=rec_lost * dz,
             source_per_step_cm2=rec_src * dz,
+            snapshots=snapshots,
         )

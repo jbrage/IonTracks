@@ -10,8 +10,8 @@ For every nozzle current the script prints:
 * the time-resolved k_s and the quasi-static Boag estimate (Boag continuous applied to every
   constant segment);
 * the peak local dose rate;
-* the space-charge parameter eta. The model has a uniform field, so results with eta >~ 1 are
-  outside its validity.
+* the space-charge parameter eta. The default model includes free electrons and space charge
+  (1D Gauss), so it departs from Boag's quasi-static estimate where eta >~ 1.
 
 Run:  python examples/cyclotron_250MeV.py [--save spots.csv]
 """
@@ -26,7 +26,6 @@ from iontracks.analytic import boag_quasi_static_loss, space_charge_parameter
 from iontracks.synthetic import (
     PROTON_250MEV_S_AIR_MEV_CM2_G,
     PROTON_250MEV_S_WATER_MEV_CM2_G,
-    W_AIR_PROTONS_EV,
     cyclotron_pbs_field,
 )
 
@@ -39,7 +38,7 @@ def main():
     args = parser.parse_args()
 
     chamber = ParallelPlateChamber(gap_cm=0.2, voltage_V=200.0, sensitive_radius_cm=0.78)
-    gas = Gas.air(W_eV=W_AIR_PROTONS_EV)
+    gas = Gas.air(particle="proton")
     model = Uniform1D(Grid1D(n_cells=200))
     points = chamber.sample_points(n_rings=4, n_azimuth=8)
     s_w_air = PROTON_250MEV_S_WATER_MEV_CM2_G / PROTON_250MEV_S_AIR_MEV_CM2_G
@@ -80,7 +79,7 @@ def main():
         dose_rate_mean_w = 2.0 / field.t_end_s
         eta = space_charge_parameter(peak_rate, chamber, gas)
         dwell = field.t_off_s[0] - field.t_on_s[0]
-        flag = "" if eta < 1 else "  <- eta > 1: space charge not modelled"
+        flag = "" if eta < 1 else "  <- eta > 1: strong space charge"
         print(
             f"{current:9.1f} {dwell * 1e3:9.3f} {field.t_end_s:8.3f} {dose_rate_mean_w:8.3f}"
             f" {dose_rate_peak_w:9.1f} {eta:6.2f} {res.ks:9.5f} {ks_qs:9.5f}"
@@ -92,8 +91,8 @@ def main():
     print(
         "\nDmean: field-average dose rate to water. Dpeak: highest local dose rate to water in"
         "\nthe chamber (spot centre passing). k_s(QS): Boag continuous applied to each constant"
-        "\nsegment. k_s is general recombination only (no track structure, no free electrons,"
-        "\nno space charge)."
+        "\nsegment (no free electrons, no space charge). k_s: default model with free electrons"
+        "\nand space charge; general recombination only (no track structure)."
     )
 
 

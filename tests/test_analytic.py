@@ -14,7 +14,7 @@ from iontracks.constants import ELEMENTARY_CHARGE_C, VACUUM_PERMITTIVITY_F_CM
 
 @pytest.mark.parametrize("gap_cm, voltage_V", [(0.2, 200.0), (0.05, 20.0), (1.0, -100.0)])
 def test_pulsed_space_charge_is_a_fixed_multiple_of_u(gap_cm, voltage_V):
-    gas = Gas.air()
+    gas = Gas.air(particle="electron")
     chamber = ParallelPlateChamber(gap_cm, voltage_V)
     ratio = space_charge_parameter_pulsed(1e9, chamber) / boag_pulsed_u(1e9, chamber, gas)
     expected = (
@@ -27,7 +27,7 @@ def test_pulsed_space_charge_is_a_fixed_multiple_of_u(gap_cm, voltage_V):
 
 
 def test_continuous_space_charge_is_a_fixed_multiple_of_xi2():
-    gas = Gas.air()
+    gas = Gas.air(particle="electron")
     chamber = ParallelPlateChamber(0.2, 200.0)
     ratio = space_charge_parameter(1e12, chamber, gas) / boag_continuous_xi2(1e12, chamber, gas)
     assert ratio == pytest.approx(
